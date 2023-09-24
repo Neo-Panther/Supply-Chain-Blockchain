@@ -18,6 +18,9 @@ class Transaction():
     self.timestamp = datetime.now()
     self.transaction_id = distributor_id^product_id^client_id
   
+  def __str__(self) -> str:
+    return str(self.__dict__())
+  
 class Block():
   def __init__(self, prev_hash: str, height: int, transactions: List[Transaction]):
     self.previous_hash = prev_hash
@@ -35,9 +38,13 @@ class Blockchain():
 
   @staticmethod
   def computeMerkleRoot(transactions: List[Transaction]) -> str:
-    items = transactions.copy()
-    
-
+    items = [Blockchain.calculateHash(txn) for txn in transactions]
+    while len(items) > 1:
+      if len(items) % 2:
+        items.append(items[-1])
+      for i in range(1, len(items)//2 + 1):
+        items.append(Blockchain.calculateHash())
+  
   @staticmethod
   def calculateHash(s: str) -> str:
     return hashlib.sha256(s.encode()).hexdigest()
