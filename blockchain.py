@@ -18,8 +18,8 @@ class Transaction():
         self.timestamp = datetime.now()
         self.transaction_id = distributor_id^product_id^client_id
   
-  def __str__(self) -> str:
-    return str(self.__dict__)
+     def  __str__(self):
+        return str(self.__dict__)
   
 class Block():
   def __init__(self, prev_hash: str, height: int, transactions: List[Transaction]) -> None:
@@ -42,12 +42,6 @@ class Blockchain():
   def calculateHash(s: str) -> str:
     return hashlib.sha256(s.encode()).hexdigest()
   
-  def addBlock(self, ):
-    pass
-
-class MerkleTree():
-  def __init__(self) -> None:
-    pass
-
-  def getRootHast(self) -> str:
-    pass
+  def addBlock(self,prev_hash:str):
+        timeStamp=datetime.now()
+        
