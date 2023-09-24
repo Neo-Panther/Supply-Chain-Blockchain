@@ -3,20 +3,20 @@ import hashlib
 from typing import Dict, List
 
 class Node():
-  def __init__(self, address: str, stake: int, id: str):
+  def __init__(self, address: str, stake: int, id : str):
     self.address = address
     self.stake = stake
     self.id = id
 
 class Transaction():
-  def __init__(self, manufacturer_id: int, product_id: int, client_id: int, distributor_id: int, amount: int):
-    self.manufacturer_id = manufacturer_id
-    self.product_id = product_id
-    self.client_id = client_id
-    self.distributor_id = distributor_id
-    self.amount = amount
-    self.timestamp = datetime.now()
-    self.transaction_id = distributor_id^product_id^client_id
+     def __init__(self, manufacturer_id: int, product_id: int, client_id: int, distributor_id: int, amount: int):
+        self.manufacturer_id = manufacturer_id
+        self.product_id = product_id
+        self.client_id = client_id
+        self.distributor_id = distributor_id
+        self.amount = amount
+        self.timestamp = datetime.now()
+        self.transaction_id = distributor_id^product_id^client_id
   
   def __str__(self) -> str:
     return str(self.__dict__)
