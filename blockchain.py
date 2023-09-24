@@ -19,11 +19,12 @@ class Transaction():
     self.transaction_id = distributor_id^product_id^client_id
   
   def __str__(self) -> str:
-    return str(self.__dict__())
+    return str(self.__dict__)
   
 class Block():
-  def __init__(self, prev_hash: str, height: int, transactions: List[Transaction]):
+  def __init__(self, prev_hash: str, height: int, transactions: List[Transaction]) -> None:
     self.previous_hash = prev_hash
+    # TODO
     self.merkle_root = Blockchain.computeMerkleRoot(transactions)
     self.height = height
     self.timestamp = datetime.now()
@@ -31,23 +32,22 @@ class Block():
 
 class Blockchain():
   def __init__(self):
-    self.blockchain: Dict[str, self.Block] = dict()
+    self.blockchain: Dict[str, Block] = dict()
     self.nodes = set()
-    self.nodes.add(Block(self.calculateHash(''), 0, []))
+    genesis_block = Block(self.calculateHash(''), 0, [])
+    self.blockchain[genesis_block.header_hash] = genesis_block
     self.unverified_transactions: List[Transaction] = []
-
-  @staticmethod
-  def computeMerkleRoot(transactions: List[Transaction]) -> str:
-    items = [Blockchain.calculateHash(txn) for txn in transactions]
-    while len(items) > 1:
-      if len(items) % 2:
-        items.append(items[-1])
-      for i in range(1, len(items)//2 + 1):
-        items.append(Blockchain.calculateHash())
   
   @staticmethod
   def calculateHash(s: str) -> str:
     return hashlib.sha256(s.encode()).hexdigest()
   
   def addBlock(self, ):
+    pass
+
+class MerkleTree():
+  def __init__(self) -> None:
+    pass
+
+  def getRootHast(self) -> str:
     pass
