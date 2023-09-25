@@ -97,7 +97,7 @@ class Block():
     self.miner_id = miner_id
     self.timestamp = datetime.now()
     self.header_hash = Blockchain.calculateHash(prev_hash + self.merkle_root + str(height) + str(miner_id) + self.timestamp.strftime("%d|%m|%Y><%H:%M:%S"))
-    self.transactions = transactions
+    self.transactions:list[Transaction] = list(transactions)
 
   @property  
   def merkle_root(self):
@@ -152,7 +152,14 @@ class Blockchain():
           return node_stakes[0][1], node_stakes[][1]
          
       delegates:list[list[int,int]]=random.choices(node_stakes,k=3)
-     
+      print('list of chosen delegates \n')
+      print(delegates)
+      print('\n')
+      print('stakes before voting \n')
+      for x in node_stakes:
+        print(x[1],x[0],sep='-')
+
+      print('\n')  
       for x in node_stakes:
             
             if x in delegates:
@@ -161,29 +168,52 @@ class Blockchain():
             value=x[0]
             selection=random.choice(delegates)
             selection[0]+=value
-              
 
+      print('stakes after voting  \n') 
+      for x in node_stakes:
+        print(x[1],x[0],sep='-')
+
+      print('\n')  
       delegates.sort(reverse=True)
+
+
       return delegates[0][1], delegates[1][1]
     
 
     validator1, validator2 = voting(current_stake)
+    print('list of chosen validators \n')
+    print(validator1,validator2,sep=' ')
+    
+    new_block:Block =Block(self.newest_block,len(self.blockchain),self.accepted_transactions,validator1)
+    result=self.validateBlock(new_block)
 
+    if result==False:
+      return False
+    
+    self.blockchain[new_block.header_hash]=new_block
+    self.newest_block=new_block.header_hash
 
-  def validateTransaction(self,transaction:Transaction) -> True|False:
+  def penalize(self,node_id:int)-> None:
+    self.node[node_id]['stake']//=2
+  def validateTransaction(self,transaction:Transaction) -> bool:
     if rsa.verify(transaction.transaction_id,transaction.sender_sign,self.nodes[transaction.sender_id])=='SHA-1':
       if rsa.verify(transaction.transaction_id,transaction.receiver_sign,self.nodes[transaction.receiver_id])=='SHA-1':
           if transaction.product_id in self.nodes[transaction.sender_id]:
-            return true
-    return false
+            return True
+          else:
+            self.penalize(transaction.sender_id)
+    return False
   
-  def validateBlock(self, block: Block) -> True|False:
+  def validateBlock(self, block: Block) -> bool:
   
-    for x in block.transactions:
+  
+    for x in block.transactions.copy():
         
         if not self.validateTransaction(x):
-          return False
-        
+           block.transactions.remove(x)
+           if len(block.transactions)==0:
+              return False
+    
     temp_tree=MerkleTree(block.transactions)
     if not temp_tree.getRootHash==block.merkle_root :
           return False
@@ -191,7 +221,10 @@ class Blockchain():
     if not blockchain[block.previous_hash].hieght==block.hieght-1 :
           return False
     
-    
+    header_hashh=self.calculateHash(block.prev_hash + block.merkle_root + block(block.height) + str(block.miner_id) + block.timestamp.strftime("%d|%m|%Y><%H:%M:%S"))
+    if not header_hashh==block.header_hash:
+      return False
+     
     return True
 
   def broadcast(self) -> None:
@@ -237,9 +270,7 @@ class Blockchain():
   def calculateHash(s: Any) -> str:
     return hashlib.sha256(str(s).encode()).hexdigest()
   
-  def addBlock(self,prev_hash:str):
-        timeStamp=datetime.now()
-        
+
 
 class MerkleNode():
   def __init__(self, value: str, left = None, right = None) -> None:
