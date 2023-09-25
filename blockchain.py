@@ -154,7 +154,8 @@ class Blockchain():
             for y in node_stakes:
               if y[1]==selection:
                 y[0]+=value
-
+              if y[1]==x[1]:
+                y[1]=0
 
       node_stakes.sort(reverse=True)
       return node_stakes[0][1], node_stakes[1][1]
