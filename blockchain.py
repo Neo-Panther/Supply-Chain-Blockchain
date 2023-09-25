@@ -139,7 +139,7 @@ class Blockchain():
     self.parent_node = parent_node
 
   
-  def mine_block(self) -> None:
+  def mineBlock(self) -> None:
     # selection of validators, (stake, id)
     current_stake: list[tuple[int, int]] = [(node['stake']+len(node['stock']) + random.randint(1, 100), id) for id, node in self.nodes.items()]
 
@@ -149,29 +149,43 @@ class Blockchain():
           return node_stakes[0][1], node_stakes[0][1]
       
       if(node_stakes.Len()==2):
-          return node_stakes[0][1], node_stakes[1][1]
+          return node_stakes[0][1], node_stakes[][1]
          
       delegates:list[list[int,int]]=random.choices(node_stakes,k=3)
      
-      dummy=delegates.copy()
-      for x in delegates:
+      for x in node_stakes:
+            
+            if x in delegates:
+              continue
+
             value=x[0]
-            selection=random.choice(node_stakes)[1]
-            x[0]=0
-            for y in dummy:
-              if y[1]==selection:
-                y[0]+=value
+            selection=random.choice(delegates)
+            selection[0]+=value
               
 
-      dummy.sort(reverse=True)
-      return dummy[0][1], dummy[1][1]
+      delegates.sort(reverse=True)
+      return delegates[0][1], delegates[1][1]
     
 
     validator1, validator2 = voting(current_stake)
 
+
+  def validateTransaction(self,transaction:Transaction) -> True|False:
+    if rsa.verify(transaction.transaction_id,transaction.sender_sign,self.nodes[transaction.sender_id])=='SHA-1':
+      if rsa.verify(transaction.transaction_id,transaction.receiver_sign,self.nodes[transaction.receiver_id])=='SHA-1':
+          if transaction.product_id in self.nodes[transaction.sender_id]:
+            return true
+    return false
   
-  def validateBlock(self, block: Block) -> bool:
-    pass
+  def validateBlock(self, block: Block) -> True|False:
+  
+    for x in block.transactions:
+        
+        if not self.validateTransaction(x):
+          return False
+        
+    temp_tree=MerkleTree(block.transactions)
+    if temp_tree
     return True
 
   def broadcast(self) -> None:
