@@ -3,6 +3,7 @@ from datetime import datetime
 import hashlib
 from numpy import block
 import rsa
+import random
 from random import randint
 import enum
 from typing import Any
@@ -148,8 +149,8 @@ class Blockchain():
          
       dummy=node_stakes
       for x in dummy:
-            selection=randint(1,1000)%dummy.Len()
             value=x[0]*randint(1,10)
+            selection=random.choice(node_stakes)[1]
             for y in node_stakes:
               if y[1]==selection:
                 y[0]+=value
