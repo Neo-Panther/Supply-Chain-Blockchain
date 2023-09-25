@@ -137,6 +137,7 @@ class Blockchain():
     self.accepted_transactions: list[Transaction] = []
     self.newest_block = genesis_block.header_hash
     self.parent_node = parent_node
+
   
   def mine_block(self) -> None:
     # selection of validators, (stake, id)
@@ -146,19 +147,24 @@ class Blockchain():
       # less than 2 nodes validator1 = validator2
       if(node_stakes.Len()==1):
           return node_stakes[0][1], node_stakes[0][1]
+      
+      if(node_stakes.Len()==2):
+          return node_stakes[0][1], node_stakes[1][1]
          
-      dummy=node_stakes.copy()
-      for x in dummy:
-            value=x[0]*randint(1,10)
+      delegates:list[list[int,int]]=random.choices(node_stakes,k=3)
+     
+      dummy=delegates.copy()
+      for x in delegates:
+            value=x[0]
             selection=random.choice(node_stakes)[1]
             x[0]=0
-            for y in node_stakes:
+            for y in dummy:
               if y[1]==selection:
                 y[0]+=value
               
 
-      node_stakes.sort(reverse=True)
-      return node_stakes[0][1], node_stakes[1][1]
+      dummy.sort(reverse=True)
+      return dummy[0][1], dummy[1][1]
     
 
     validator1, validator2 = voting(current_stake)
