@@ -3,6 +3,7 @@ from datetime import datetime
 import hashlib
 from numpy import block
 import rsa
+import random
 import enum
 from typing import Any
 from collections.abc import Iterable
@@ -90,12 +91,16 @@ class Block():
   def __init__(self, prev_hash: str, height: int, transactions:Iterable[Transaction], miner_id: int) -> None:
     self.previous_hash = prev_hash
     merkle_tree = MerkleTree(transactions)
-    self.merkle_root = merkle_tree.getRootHash()
+    self.__merkle_root = merkle_tree.getRootHash()
     self.height = height
     self.miner_id = miner_id
     self.timestamp = datetime.now()
     self.header_hash = Blockchain.calculateHash(prev_hash + self.merkle_root + str(height) + str(miner_id) + self.timestamp.strftime("%d|%m|%Y><%H:%M:%S"))
     self.transactions = transactions
+
+  @property  
+  def merkle_root(self):
+    return self.__merkle_root
 
 """
 Represents the Blockchain copy on a node
@@ -133,7 +138,20 @@ class Blockchain():
     self.parent_node = parent_node
   
   def mine_block(self) -> None:
+    # selection of validators, (stake, id)
+    current_stake: list[tuple[int, int]] = [(node['stake']+len(node['stock']) + random.randint(1, 100), id) for id, node in self.nodes.items()]
+
+    def voting(node_stakes: list[tuple[int, int]]) -> tuple[int, int]:
+      # less than 2 nodes validator1 = validator2
+      pass
+      return node_stakes[0][1], node_stakes[1][1]
+
+    validator1, validator2 = voting(current_stake)
+
+  
+  def validateBlock(self, block: Block) -> bool:
     pass
+    return True
 
   def broadcast(self) -> None:
     # send the current status of the BC to all listening nodes
