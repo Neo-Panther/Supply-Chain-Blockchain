@@ -142,20 +142,20 @@ class Blockchain():
     # selection of validators, (stake, id)
     current_stake: list[tuple[int, int]] = [(node['stake']+len(node['stock']) + random.randint(1, 100), id) for id, node in self.nodes.items()]
 
-    def voting(node_stakes: list[tuple[int, int]]) -> tuple[int, int]:
+    def voting(node_stakes: list[list[int, int]]) -> list[int, int]:
       # less than 2 nodes validator1 = validator2
       if(node_stakes.Len()==1):
           return node_stakes[0][1], node_stakes[0][1]
          
-      dummy=node_stakes
+      dummy=node_stakes.copy()
       for x in dummy:
             value=x[0]*randint(1,10)
             selection=random.choice(node_stakes)[1]
+            x[0]=0
             for y in node_stakes:
               if y[1]==selection:
                 y[0]+=value
-              if y[1]==x[1]:
-                y[0]=0
+              
 
       node_stakes.sort(reverse=True)
       return node_stakes[0][1], node_stakes[1][1]
