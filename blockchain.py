@@ -3,7 +3,7 @@ from datetime import datetime
 import hashlib
 from numpy import block
 import rsa
-import random
+from random import randint
 import enum
 from typing import Any
 from collections.abc import Iterable
@@ -143,8 +143,21 @@ class Blockchain():
 
     def voting(node_stakes: list[tuple[int, int]]) -> tuple[int, int]:
       # less than 2 nodes validator1 = validator2
-      pass
+      if(node_stakes.Len()==1):
+          return node_stakes[0][1], node_stakes[0][1]
+         
+      dummy=node_stakes
+      for x in dummy:
+            selection=randint(1,1000)%dummy.Len()
+            value=x[0]*randint(1,10)
+            for y in node_stakes:
+              if y[1]==selection:
+                y[0]+=value
+
+
+      node_stakes.sort(reverse=True)
       return node_stakes[0][1], node_stakes[1][1]
+    
 
     validator1, validator2 = voting(current_stake)
 
