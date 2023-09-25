@@ -185,7 +185,13 @@ class Blockchain():
           return False
         
     temp_tree=MerkleTree(block.transactions)
-    if temp_tree
+    if not temp_tree.getRootHash==block.merkle_root :
+          return False
+
+    if not blockchain[block.previous_hash].hieght==block.hieght-1 :
+          return False
+    
+    
     return True
 
   def broadcast(self) -> None:
