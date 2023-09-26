@@ -6,7 +6,7 @@ import rsa
 import random
 from random import randint
 import enum
-from typing import Any
+from typing import Any, Literal, TypedDict
 from collections.abc import Iterable
 """
 Represents the types a node can be
@@ -15,6 +15,13 @@ class NodeType(enum.Enum):
   MANUFACTURER = 'manufacturer'
   DISTRIBUTOR = 'distributor'
   CLIENT = 'client'
+
+class NodePublicInfo(TypedDict):
+  id: int
+  stake: int
+  stock: set
+  type: NodeType
+  public_key: rsa.PublicKey
 
 """
 Represents a Node in the Blockchain (A Node object is private to each running node)
@@ -41,9 +48,9 @@ class Node():
     data: data to create signature for - lenght < 53
   returns: the created signature (in utf-8)
   """
-  def sign(self, data: Any) -> str:
+  def sign(self, data: Any) -> bytes:
     data = str(data)
-    return rsa.sign(data.encode('utf-8'), self.__private_key, 'SHA-1').decode('utf-8')
+    return rsa.sign(data.encode('utf-8'), self.__private_key, 'SHA-1')
 
   """
   params:
@@ -53,14 +60,15 @@ class Node():
   returns: True | False
   """
   @staticmethod
-  def verify(message: Any, signature: str, key: rsa.PublicKey) -> bool:
-    return rsa.verify(str(message).encode('utf-8'), signature.encode('utf-8'), key) == 'SHA-1'
+  def verify(message: Any, signature: bytes, key: rsa.PublicKey) -> bool:
+    return rsa.verify(str(message).encode('utf-8'), signature, key) == 'SHA-1'
 
   """
-  returns: publically available data of this node
+  returns: publically available data of this node, the stock set's reference is returned, changing stock returned by getInfo, changes
   """
-  def getInfo(self) -> dict[str, Any]:
+  def getInfo(self) -> NodePublicInfo:
     return {
+      'id': self.id,
       'stake': self.stake,
       'stock': self.stock,
       'type': self.type,
@@ -80,15 +88,15 @@ Represents a transaction in the blockchain
   str: returns a str version of the transaction for hashing
 """
 class Transaction():
-  def __init__(self, manufacturer_id: int, product_id: int, sender_id: int, receiver_id: int, sender_sign: str) -> None:
+  def __init__(self, manufacturer_id: int, product_id: int, sender_id: int, receiver_id: int, sender_sign: bytes) -> None:
     self.manufacturer_id = manufacturer_id
     self.product_id = product_id
     self.sender_id = sender_id
     self.receiver_id = receiver_id
     self.timestamp = datetime.now().strftime("%d|%m|%Y><%H:%M:%S")
     self.transaction_id = receiver_id^product_id^sender_id
-    self.sender_sign: str = sender_sign
-    self.receiver_sign: None | str = None
+    self.sender_sign: bytes = sender_sign
+    self.receiver_sign: None | bytes = None
   
   def  __str__(self):
     return str(self.__dict__)
@@ -122,6 +130,9 @@ class Block():
   @property  
   def merkle_root(self):
     return self.merkle_tree.getRootHash()
+  
+  def __str__(self) -> str:
+    return str(self.__dict__)
 
 """
 Represents the Blockchain copy on a node
@@ -134,11 +145,11 @@ Represents the Blockchain copy on a node
   newest_block: header_hash of the latest block added to the chain
   parent_node: the node running this blockchain copy
 **Methods**
-  mine_block: verify transactions of a block, the block itself and add it to the blockchain, miner and validators chosen based on consensus algorithm (contains the voting function to simulate a round of voting)
+  mineBlock: verify transactions of a block, the block itself and add it to the blockchain, miner and validators chosen based on consensus algorithm (contains the voting function to simulate a round of voting)
   ! consensus algorithm runs here
   validateTransactions: validate a goven transaction
   validateBlock: validate a given block
-  requestTransaction: the parent node sends product id to a receiver node
+  requestTransaction: the parent node sends product id to a receiver node; manufacturer can make a transaction to itself to add products to the supply chain
   getPendingTransactions: parent node prints the transactions waiting for its signature
   accept | reject Transaction: parent node accepts | rejects an incoming transaction request
   changeParentNode: make another node parent
@@ -147,13 +158,14 @@ Represents the Blockchain copy on a node
 """
 class Blockchain():
   def __init__(self, manufacturer_node: Node) -> None:
+    current_active_nodes[manufacturer_node.id] = manufacturer
     self.manufacturer_id = manufacturer_node.id
     # header_hash => block
     self.blockchain: dict[str, Block] = dict()
     genesis_block = Block(self.calculateHash(''), 0, [], manufacturer_node.id)
     self.blockchain[genesis_block.header_hash] = genesis_block
     # node_id => node's public info
-    self.nodes: dict[int, dict[str, Any]] = {manufacturer_node.id: manufacturer_node.getInfo()}
+    self.nodes: dict[int, NodePublicInfo] = {manufacturer_node.id: manufacturer_node.getInfo()}
     # the genesis block
     self.blocked_nodes: set[int] = set()
     # receiver_id => unsigned transaction list
@@ -200,10 +212,25 @@ class Blockchain():
     miner, validator1, validator2 = voting()
     print('Chosen Miner id:', miner, 'Chosen Validator ids:', validator1, validator2)
     
-    new_block = Block(self.newest_block, len(self.blockchain), self.accepted_transactions,miner)
+    block_txn = self.accepted_transactions
+    # verify all accepted transactions
+    for txn in block_txn.copy():
+      if not self.validateTransaction(txn):
+        block_txn.remove(txn)
+    # if there are no transactions, stop mining
+    if not block_txn:
+      self.accepted_transactions.clear()
+      self.blocked_nodes.clear()
+      return print("No valid transactions for this block found")
+
+    print("Valid transactions separated:", block_txn)
+    new_block = Block(self.newest_block, len(self.blockchain), block_txn, miner)
+
     if not self.validateBlock(new_block):
       print("Block failed verification for 50% validators, applying penalty to the miner")
       self.nodes[miner]['stake'] //= 2
+      # BROADCAST
+      current_active_nodes[miner].stake //= 2
       return
     
     # Block is valid, make necessary changes to the blockchain
@@ -213,54 +240,63 @@ class Blockchain():
     self.newest_block=new_block.header_hash
 
   """
-  Validate a transaction and perform the operations if it is valid
+  Validate a transaction and perform the operations if it is valid; only manufacturer can make a transaction to oneself
   """
-  #TODO: add validate only for possible transacs
   def validateTransaction(self, transaction:Transaction) -> bool:
-    if Node.verify(transaction.transaction_id,transaction.sender_sign,self.nodes[transaction.sender_id]['public_key']) and transaction.receiver_sign:
+    self.blocked_nodes.remove(transaction.sender_id)
+    if transaction.receiver_id != transaction.sender_id:
+      self.blocked_nodes.remove(transaction.receiver_id)
+    if Node.verify(transaction.transaction_id, transaction.sender_sign, self.nodes[transaction.sender_id]['public_key']) and transaction.receiver_sign:
+      print("sender_sign verified")
       if Node.verify(transaction.transaction_id, transaction.receiver_sign, self.nodes[transaction.receiver_id]['public_key']):
-        if transaction.product_id in self.nodes[transaction.sender_id]:
+        print("reciever_sign verified")
+        if transaction.sender_id == transaction.receiver_id:
+          print('transaction from manufacturer to manufacturer')
+          if transaction.sender_id != transaction.manufacturer_id:
+            print("Transaction to oneself (not manufacturer) detected")
+            return False
+          # Manufacturer adds products to the blockchain
+          self.nodes[transaction.receiver_id]['stock'].add(transaction.product_id)
+          # BROADCAST
+          current_active_nodes[transaction.receiver_id].stock.add(transaction.product_id)
+          return True
+        elif transaction.product_id in self.nodes[transaction.sender_id]['stock']:
+          print('Product id in sender\'s stock verified')
           # perform the transaction operations
           self.nodes[transaction.sender_id]['stock'].remove(transaction.product_id)
           self.nodes[transaction.receiver_id]['stock'].add(transaction.product_id)
-          # BROADCAST
-          current_active_nodes[transaction.sender_id].stock.remove(transaction.product_id)
-          current_active_nodes[transaction.receiver_id].stock.add(transaction.product_id)
           return True
         else:
           # double spending detected
           print("Double Spending by id:", transaction.sender_id, "detected")
           print("Penalizing the node")
           self.nodes[transaction.sender_id]['stake'] //= 2
+          current_active_nodes[transaction.sender_id].stake //= 2
     return False
   
   def validateBlock(self, block: Block) -> bool:
-    # verify all block transactions
-    for txn in block.transactions.copy():
-      if not self.validateTransaction(txn):
-        block.transactions.remove(txn)
-    # if there are no transactions; or all of them were invalid
-    if len(block.transactions)==0:
-      return False
-    
     # check the merkle tree
     temp_tree=MerkleTree(block.transactions)
-    if not temp_tree.getRootHash==block.merkle_root :
+    if not (temp_tree.getRootHash()==block.merkle_root):
       return False
-
+    
+    print("merkle tree verified")
     # check the previous hash and the block height
     if not (block.previous_hash in self.blockchain) or not (self.blockchain[block.previous_hash].height==block.height-1):
       return False
     
+    print('previous hash verified')
     # check the headerhash
     header_hash=self.calculateHash(block.previous_hash + block.merkle_root + str(block.height) + str(block.miner_id) + block.timestamp.strftime("%d|%m|%Y><%H:%M:%S"))
     if not header_hash==block.header_hash:
       return False
     
+    print('header hash verified')
+    print('block verified')
     # block verified
     return True
 
-  def requestTransaction(self, receiver_id: int, product_id: int) -> None:
+  def startTransaction(self, receiver_id: int, product_id: int) -> None:
     sender_id = self.parent_node.id
     if self.parent_node.id in self.blocked_nodes: return print("Previous transaction verification pending.\n Next transaction can be requested only after verifying previous one")
     new_txn = Transaction(self.manufacturer_id, product_id, sender_id, receiver_id, self.parent_node.sign(product_id^sender_id^receiver_id))
@@ -270,7 +306,7 @@ class Blockchain():
       self.blocked_nodes.add(receiver_id)
       return print("Given product will be added in next mining")
     self.pending_transactions[receiver_id].append(new_txn)
-    self.blocked_nodes.add(receiver_id)
+    self.blocked_nodes.add(sender_id)
     print("Transaction request sent to: ", receiver_id)
     return print("Transaction id:", new_txn.transaction_id)
 
@@ -291,12 +327,12 @@ class Blockchain():
   """
   Accept a transaction, the acceptor is added to the blocked_nodes list, transaction moved to accepted_transactions
   """
-  def acceptTransaction(self, transaction_id: int) -> None:
+  def acceptTransaction(self, sender_id: int) -> None:
     if self.parent_node.id in self.blocked_nodes: return print("Previous transaction verification pending.\n Next transaction can be accepted only after verifying previous one")
     for txn in self.pending_transactions[self.parent_node.id]:
-      if txn.transaction_id == transaction_id:
+      if txn.sender_id == sender_id:
         self.pending_transactions[self.parent_node.id].remove(txn)
-        txn.receiver_sign = self.parent_node.sign(transaction_id)
+        txn.receiver_sign = self.parent_node.sign(txn.transaction_id)
         self.accepted_transactions.append(txn)
         self.blocked_nodes.add(self.parent_node.id)
         return print("Transaction accepted")
@@ -309,21 +345,25 @@ class Blockchain():
   def calculateHash(s: Any) -> str:
     return hashlib.sha256(str(s).encode()).hexdigest()
   
-  def addNode(self, n_address: int, security_deposit: int, type: str, n_stock: Iterable[int] = ()) -> None:
+  def addNode(self, n_address: int, initial_stake: int, type: Literal['client', 'distributor'], n_stock: Iterable[int] = ()) -> None:
     if type == 'client':
       ntype = NodeType.CLIENT
-    elif type == 'distributor':
-      ntype = NodeType.DISTRIBUTOR
     else:
-      return print("This type of node cannot be created")
-    new_node = Node(10*security_deposit, n_address, n_stock, ntype)
+      ntype = NodeType.DISTRIBUTOR
+    new_node = Node(10*initial_stake, n_address, n_stock, ntype)
     self.nodes[new_node.id] = new_node.getInfo()
     # BROADCAST
     current_active_nodes[new_node.id] = new_node
   
-  # TODO:
   def getProductStatus(self, product_id: int) -> str:
-    pass
+    cur_block = self.blockchain[self.newest_block]
+    while cur_block.height != 0:
+      for txn in cur_block.transactions:
+        if txn.product_id == product_id:
+          if txn.product_id == txn.manufacturer_id == txn.receiver_id:
+            return "Manufacturer with id: " + str(self.manufacturer_id) + " added the product to the supply chain on: " + txn.timestamp
+          return "Product with id: " + str(product_id) + " was sent from: " + self.nodes[txn.sender_id]['type'].name + " id: " + str(txn.sender_id) + " to: " + self.nodes[txn.receiver_id]['type'].name + " id: " + str(txn.receiver_id) + " on: " + txn.timestamp
+    return "Product does not exist on the supply chain"
 
 """
 Class defining a node of the merkle tree
@@ -368,17 +408,37 @@ class MerkleTree():
   def getRootHash(self) -> str:
     return self.tree_root.value
 
-#######  Functions to be used in Flask  #######
-# TODO: move this to a new file main.py, import this file there
-
 # pool of all active nodes
 current_active_nodes: dict[int, Node] = dict()
 
-# the main function of our code
-def startVirtualMachine(m_address: int, m_stake: int, m_stock: Iterable[int]) -> None:
-  manufacturer = Node(m_stake, m_address, m_stock, NodeType.MANUFACTURER)
-  current_active_nodes[manufacturer.id] = manufacturer
-  blockchain = Blockchain(manufacturer)
-
-
-# startVirtualMachine(100, 100, )
+######      Testing Zone      ######
+if __name__ == '__main__':
+  manufacturer = Node(100000000, 9999, (123, 321, 111, 222, 333), NodeType.MANUFACTURER)
+  bc = Blockchain(manufacturer)
+  print("add distributor 9998")
+  bc.addNode(9998, 1000, 'distributor', (323,))
+  print('add distributor 9997')
+  bc.addNode(9997, 1100, 'distributor', (909,))
+  print("add client 9996")
+  bc.addNode(9996, 100, 'client', ())
+  print([node.getInfo() for node in current_active_nodes.values()])
+  print(bc.nodes)
+  # manufacturer starts a transaction with the distributor
+  bc.startTransaction(9998, 123)
+  # distributor starts a transaction with the client
+  bc.changeParentNode(9997)
+  bc.startTransaction(9997, 323)
+  print(bc.pending_transactions)
+  print("Now at node: ", bc.parent_node.getInfo())
+  print("Pending transacs for 9998:", bc.getPendingTransactions())
+  # distributor accepts the transac
+  bc.acceptTransaction(9999)
+  print(bc.pending_transactions)
+  # transacs are verified in next mining
+  bc.mineBlock()
+  # print blockchain
+  cur_block = bc.newest_block
+  while bc.blockchain[cur_block].height != 0:
+    print(bc.blockchain[cur_block])
+    cur_block = bc.blockchain[cur_block].previous_hash
+  print(bc.blockchain[cur_block])
