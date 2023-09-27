@@ -1,21 +1,16 @@
 from collections import defaultdict
 from datetime import datetime
 import hashlib
-from numpy import block
 import rsa
 import random
 from random import randint
-import pyqrcode
-import pypng
-from pqrcode import QRcode
 import qrcode
 import enum
-from typing import Any
+from typing import Any,TypedDict,Literal
 from collections.abc import Iterable
 """
 Represents the types a node can be
 """
-app = Flask(__name__)
 
 class NodeType(enum.Enum):
   MANUFACTURER = 'manufacturer'
@@ -192,9 +187,7 @@ class Blockchain():
           return node_stake[0][1], node_stake[0][1], node_stake[0][1]
       if(len(node_stake)==2):
           return node_stake[0][1], node_stake[0][1], node_stake[1][1]
-      
-      if(node_stake.Len()==2):
-          return node_stake[0][1], node_stake[][1]
+    
          
       delegates:list[list[int,int]]=random.choices(node_stake,k=3)
       print('list of chosen delegates \n')
@@ -447,6 +440,7 @@ current_active_nodes: dict[int, Node] = dict()
 
 ######      Testing Zone      ######
 if __name__ == '__main__':
+
   manufacturer = Node(10000, 9999, (123, 321, 111, 222, 333), NodeType.MANUFACTURER)
   bc = Blockchain(manufacturer)
   print("add distributor 9998")
