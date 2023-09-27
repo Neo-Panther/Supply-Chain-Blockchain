@@ -233,6 +233,15 @@ class Blockchain():
       current_active_nodes[miner].stake //= 2
       return
     
+    print('rewarding miner and validators')
+    self.nodes[miner]['stake'] += 2
+    self.nodes[validator1]['stake'] += 2
+    self.nodes[validator2]['stake'] += 2
+    # BROADCAST
+    current_active_nodes[miner].stake += 2
+    current_active_nodes[validator1].stake += 2
+    current_active_nodes[validator2].stake += 2
+
     # Block is valid, make necessary changes to the blockchain
     self.accepted_transactions.clear()
     self.blocked_nodes.clear()
@@ -316,13 +325,25 @@ class Blockchain():
   """
   Reject a transaction, the initiator is notified and removed from blocked_nodes
   """
-  def rejectTransaction(self, transaction_id: int) -> None:
+  def rejectTransactionRequest(self, sender_id: int) -> None:
     for txn in self.pending_transactions[self.parent_node.id]:
-      if txn.transaction_id == transaction_id:
+      if txn.sender_id == sender_id:
         self.pending_transactions[self.parent_node.id].remove(txn)
         self.blocked_nodes.remove(txn.sender_id)
         return print("Transaction rejected")
     return print("No such transaction")
+  
+  """
+  Delete a transaction started by the parent_node
+  """
+  def deletePendingTransaction(self, receiver_id: int) -> None:
+    for txn in self.pending_transactions[receiver_id]:
+      if txn.sender_id == self.parent_node.id:
+        self.pending_transactions[receiver_id].remove(txn)
+        self.blocked_nodes.remove(self.parent_node.id)
+        return print("Transaction Request")
+    return print("No such transaction")
+
 
   """
   Accept a transaction, the acceptor is added to the blocked_nodes list, transaction moved to accepted_transactions
@@ -413,7 +434,7 @@ current_active_nodes: dict[int, Node] = dict()
 
 ######      Testing Zone      ######
 if __name__ == '__main__':
-  manufacturer = Node(100000000, 9999, (123, 321, 111, 222, 333), NodeType.MANUFACTURER)
+  manufacturer = Node(10000, 9999, (123, 321, 111, 222, 333), NodeType.MANUFACTURER)
   bc = Blockchain(manufacturer)
   print("add distributor 9998")
   bc.addNode(9998, 1000, 'distributor', (323,))
