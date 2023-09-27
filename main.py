@@ -15,5 +15,8 @@ while(True):
   print("Get Product Status: 4 \n")
   print("Display blockchain: 5 \n")
   print("mine block : 6 \n")
+
+  s=input("chooose an operation to perform ")
   
-  selection=input("chooose an operation to perform ")
+  if s==1:
+    print()
