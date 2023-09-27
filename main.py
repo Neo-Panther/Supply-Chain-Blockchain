@@ -48,7 +48,9 @@ while(True):
   elif s==6:
      bc.parent_node.getInfo()      
      
-       
+  elif s==7:
+    a:int=input("enter product id")
+    bc.getProductStatus(a)    
 
 
 
