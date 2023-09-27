@@ -8,12 +8,15 @@ from random import randint
 import pyqrcode
 import pypng
 from pqrcode import QRcode
+import qrcode
 import enum
-from typing import Any, Literal, TypedDict
+from typing import Any
 from collections.abc import Iterable
 """
 Represents the types a node can be
 """
+app = Flask(__name__)
+
 class NodeType(enum.Enum):
   MANUFACTURER = 'manufacturer'
   DISTRIBUTOR = 'distributor'
@@ -177,7 +180,7 @@ class Blockchain():
     self.newest_block = genesis_block.header_hash
     self.parent_node = manufacturer_node
 
-
+  
   def mineBlock(self) -> None:
     print("Mining initiated")
     def voting() -> tuple[int, int, int]:
@@ -190,22 +193,26 @@ class Blockchain():
       if(len(node_stake)==2):
           return node_stake[0][1], node_stake[0][1], node_stake[1][1]
       
-      max_stake = max(node[0] for node in node_stake)
-      # add a temporary random amount to every node's stake - so the node with the highest stake doesn't control the system
-      for node in node_stake:
-        node[1] += random.randint(0, max_stake*2)
-      
-      # SIMULATED: the nodes who vote themselves are selected as delegates - candidates to become leader
-      delegates: list[list[int]] = random.sample(node_stake, k=random.randint(3, len(node_stake)))
-      print('List of chosen delegates:', delegates)
-      print('Nodes\' voting power before voting round (id, voting power):', [(id, vp) for vp, id in node_stake]) 
+      if(node_stake.Len()==2):
+          return node_stake[0][1], node_stake[][1]
+         
+      delegates:list[list[int,int]]=random.choices(node_stake,k=3)
+      print('list of chosen delegates \n')
+      print(delegates)
+      print('\n')
+      print('stakes before voting \n')
+      for x in node_stake:
+        print(x[1],x[0],sep='-')
 
-      for node in node_stake:
-        # a delegate votes itself
-        if node in delegates: continue
-        selection=random.choice(delegates)
-        selection[0]+=node[0]
-        node[0] = 0
+      print('\n')  
+      for x in node_stake:
+            
+            if x in delegates:
+              continue
+
+            value=x[0]
+            selection=random.choice(delegates)
+            selection[0]+=value
 
       print('Nodes\' vote values after voting round (id, voting power):', [(id, vp) for vp, id in node_stake]) 
       # if two nodes have the same vote values, compare their ids (higher id => older node)
@@ -380,14 +387,17 @@ class Blockchain():
     current_active_nodes[new_node.id] = new_node
   
   def getProductStatus(self, product_id: int) -> str:
+    ans:str
     cur_block = self.blockchain[self.newest_block]
     while cur_block.height != 0:
       for txn in cur_block.transactions:
         if txn.product_id == product_id:
-          if txn.product_id == txn.manufacturer_id == txn.receiver_id:
-            return "Manufacturer with id: " + str(self.manufacturer_id) + " added the product to the supply chain on: " + txn.timestamp
-          return "Product with id: " + str(product_id) + " was sent from: " + self.nodes[txn.sender_id]['type'].name + " id: " + str(txn.sender_id) + " to: " + self.nodes[txn.receiver_id]['type'].name + " id: " + str(txn.receiver_id) + " on: " + txn.timestamp
-    return "Product does not exist on the supply chain"
+          if txn.sender_id_id == txn.manufacturer_id == txn.receiver_id:
+            ans= "Manufacturer with id: " + str(self.manufacturer_id) + " added the product to the supply chain on: " + txn.timestamp
+          ans= "Product with id: " + str(product_id) + " was sent from: " + self.nodes[txn.sender_id]['type'].name + " id: " + str(txn.sender_id) + " to: " + self.nodes[txn.receiver_id]['type'].name + " id: " + str(txn.receiver_id) + " on: " + txn.timestamp
+    ans= "Product does not exist on the supply chain"
+    img = qrcode.make(ans)
+    img.save('MyQRCode1.png')
 
 """
 Class defining a node of the merkle tree
