@@ -5,6 +5,9 @@ from numpy import block
 import rsa
 import random
 from random import randint
+import pyqrcode
+import pypng
+from pqrcode import QRcode
 import enum
 from typing import Any, Literal, TypedDict
 from collections.abc import Iterable
