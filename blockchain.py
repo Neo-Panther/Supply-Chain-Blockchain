@@ -3,20 +3,23 @@ from datetime import datetime
 import hashlib
 import rsa
 import random
-from random import randint
 import qrcode
 import enum
-from typing import Any,TypedDict,Literal
+from typing import Any, TypedDict, Literal
 from collections.abc import Iterable
+MAX_TRANSACSIZE = 3
+
 """
 Represents the types a node can be
 """
-
 class NodeType(enum.Enum):
   MANUFACTURER = 'manufacturer'
   DISTRIBUTOR = 'distributor'
   CLIENT = 'client'
 
+"""
+Data class representing the public info of a node
+"""
 class NodePublicInfo(TypedDict):
   id: int
   stake: int
@@ -29,7 +32,7 @@ Represents a Node in the Blockchain (A Node object is private to each running no
 **Fields**
   <in>stake: stake of the node in the system (positive integer)
   <in>id: unique id of the node (positive integer, less than 53 digits) - specifies the port address number of the node on local host, higher port number => earlier the node joined the chain
-  <in>stock: dictionary of all product_id the Node has
+  <in>stock: set of all product_id the Node has
   <in>type: type of the node (see NodeType)
   public_key, __private_key: the public and private keys of the node
 **Methods**
@@ -75,11 +78,14 @@ class Node():
       'type': self.type,
       'public_key': self.public_key
     }
+  
+  def __str__(self) -> str:
+    return str(self.__dict__)
 
 """
 Represents a transaction in the blockchain
 **Fields**
-  manufacturer_id, sender_id, receiver_id, product_id: are the respective unique ids
+  manufacturer_id, sender_id, receiver_id, product_ids: are the respective unique ids
   timestamp: timestamp when the trasaction was started
   transaction_id: semi-unique id for signing of the transaction
   sender_sign: digital signature of the sender using transaction_id
@@ -89,13 +95,16 @@ Represents a transaction in the blockchain
   str: returns a str version of the transaction for hashing
 """
 class Transaction():
-  def __init__(self, manufacturer_id: int, product_id: int, sender_id: int, receiver_id: int, sender_sign: bytes) -> None:
+  def __init__(self, manufacturer_id: int, product_ids: set[int], sender_id: int, receiver_id: int, sender_sign: bytes) -> None:
     self.manufacturer_id = manufacturer_id
-    self.product_id = product_id
+    self.product_ids = product_ids
     self.sender_id = sender_id
     self.receiver_id = receiver_id
     self.timestamp = datetime.now().strftime("%d|%m|%Y><%H:%M:%S")
-    self.transaction_id = receiver_id^product_id^sender_id
+    product_xor = 0
+    for i in product_ids:
+      product_xor ^= i
+    self.transaction_id = receiver_id^product_xor^sender_id
     self.sender_sign: bytes = sender_sign
     self.receiver_sign: None | bytes = None
   
@@ -150,17 +159,20 @@ Represents the Blockchain copy on a node
   ! consensus algorithm runs here
   validateTransactions: validate a goven transaction
   validateBlock: validate a given block
-  requestTransaction: the parent node sends product id to a receiver node; manufacturer can make a transaction to itself to add products to the supply chain
+  startTransaction: the parent node sends product id to a receiver node; manufacturer can make a transaction to itself to add products to the supply chain
   getPendingTransactions: parent node prints the transactions waiting for its signature
-  accept | reject Transaction: parent node accepts | rejects an incoming transaction request
+  (accept|reject)TransactionRequest: parent node accepts | rejects an incoming transaction request
   changeParentNode: make another node parent
   calculate_hash: utility function to find SHA-256 hash of some data
   getProductStatus: given a product id, traverse the block chain to find the most recent transaction the product was present in
+  showBlockchain: print all blocks of the blockchain
 """
 class Blockchain():
   def __init__(self, manufacturer_node: Node) -> None:
-    current_active_nodes[manufacturer_node.id] = manufacturer
+    current_active_nodes[manufacturer_node.id] = manufacturer_node
     self.manufacturer_id = manufacturer_node.id
+    for product in manufacturer_node.stock:
+      product_locations[product] = self.manufacturer_id
     # header_hash => block
     self.blockchain: dict[str, Block] = dict()
     genesis_block = Block(self.calculateHash(''), 0, [], manufacturer_node.id)
@@ -174,38 +186,33 @@ class Blockchain():
     self.accepted_transactions: list[Transaction] = []
     self.newest_block = genesis_block.header_hash
     self.parent_node = manufacturer_node
-
   
   def mineBlock(self) -> None:
     print("Mining initiated")
+    voted: defaultdict[int, set[int]] = defaultdict(set)
     def voting() -> tuple[int, int, int]:
       # selection of validators: [stake, id] - assume all active nodes available for mining and validation
       node_stake: list[list[int]] = [[node['stake']+len(node['stock']), id] for id, node in self.nodes.items()]
+
+      print('Stakes Before Voting (id, stake): ', [(node[1], node[0]) for node in node_stake])
 
       # less than 3 nodes in the chain
       if(len(node_stake)==1):
           return node_stake[0][1], node_stake[0][1], node_stake[0][1]
       if(len(node_stake)==2):
           return node_stake[0][1], node_stake[0][1], node_stake[1][1]
-    
          
-      delegates:list[list[int,int]]=random.choices(node_stake,k=3)
-      print('list of chosen delegates \n')
-      print(delegates)
-      print('\n')
-      print('stakes before voting \n')
-      for x in node_stake:
-        print(x[1],x[0],sep='-')
+      delegates:list[list[int]]=random.choices(node_stake,k=3)
+      print('List of Chosen Delegates: ', delegates)
+      print('Vote Values Before Voting (id, stake): ', [(node[1], node[0]) for node in node_stake])
 
-      print('\n')  
       for x in node_stake:
-            
-            if x in delegates:
-              continue
-
-            value=x[0]
-            selection=random.choice(delegates)
-            selection[0]+=value
+        if x in delegates:
+          continue
+        delegate = random.choice(delegates)
+        delegate[0] += x[0]
+        voted[delegate[1]].add(x[1])
+        x[0] = 0
 
       print('Nodes\' vote values after voting round (id, voting power):', [(id, vp) for vp, id in node_stake]) 
       # if two nodes have the same vote values, compare their ids (higher id => older node)
@@ -230,26 +237,53 @@ class Blockchain():
     new_block = Block(self.newest_block, len(self.blockchain), block_txn, miner)
 
     if not self.validateBlock(new_block):
-      print("Block failed verification for 50% validators, applying penalty to the miner")
+      print("Block failed verification for 50% validators, applying penalty to the miner and those who voted for him")
       self.nodes[miner]['stake'] //= 2
-      # BROADCAST
       current_active_nodes[miner].stake //= 2
-      return
-    
-    print('rewarding miner and validators')
-    self.nodes[miner]['stake'] += 2
-    self.nodes[validator1]['stake'] += 2
-    self.nodes[validator2]['stake'] += 2
-    # BROADCAST
-    current_active_nodes[miner].stake += 2
-    current_active_nodes[validator1].stake += 2
-    current_active_nodes[validator2].stake += 2
+      for id in voted[miner]:
+        self.nodes[id]['stake'] -= 20
+        current_active_nodes[id].stake -= 20
+    else:    
+      print("Block Mined, 2 confirmations received, applying valid transaction operations::")
+      for transaction in new_block.transactions:
+        if transaction.sender_id == transaction.receiver_id:
+          print('Transaction from manufacturer to manufacturer')
+        else:
+          # perform the transaction operations
+          self.nodes[transaction.sender_id]['stock'] = self.nodes[transaction.sender_id]['stock'].difference(transaction.product_ids)
+          # BROADCAST
+          current_active_nodes[transaction.sender_id].stock = current_active_nodes[transaction.sender_id].stock.difference(transaction.product_ids)
+        # receiver always gets the goods
+        self.nodes[transaction.receiver_id]['stock'] = self.nodes[transaction.receiver_id]['stock'].union(transaction.product_ids)
+        # BROADCAST
+        for product in transaction.product_ids:
+          product_locations[product] = transaction.receiver_id
+        current_active_nodes[transaction.receiver_id].stock = current_active_nodes[transaction.receiver_id].stock.union(transaction.product_ids)
+      
+      print('Rewarding Miner and his voters')
+      self.nodes[miner]['stake'] += 200
+      current_active_nodes[miner].stake += 200
+      for id in voted[miner]:
+        self.nodes[id]['stake'] += 5
+        current_active_nodes[id].stake += 5
 
-    # Block is valid, make necessary changes to the blockchain
-    self.accepted_transactions.clear()
-    self.blocked_nodes.clear()
-    self.blockchain[new_block.header_hash]=new_block
-    self.newest_block=new_block.header_hash
+      # Block is valid, make necessary changes to the blockchain
+      self.accepted_transactions.clear()
+      self.blocked_nodes.clear()
+      self.blockchain[new_block.header_hash]=new_block
+      self.newest_block=new_block.header_hash
+    
+    print("Rewarding validator and their voters::")
+    self.nodes[validator1]['stake'] += 20
+    current_active_nodes[validator1].stake += 20
+    for id in voted[validator1]:
+      self.nodes[id]['stake'] += 2
+      current_active_nodes[id].stake += 2
+    self.nodes[validator2]['stake'] += 20
+    current_active_nodes[validator2].stake += 20
+    for id in voted[validator2]:
+      self.nodes[id]['stake'] += 2
+      current_active_nodes[id].stake += 2
 
   """
   Validate a transaction and perform the operations if it is valid; only manufacturer can make a transaction to oneself
@@ -263,20 +297,12 @@ class Blockchain():
       if Node.verify(transaction.transaction_id, transaction.receiver_sign, self.nodes[transaction.receiver_id]['public_key']):
         print("reciever_sign verified")
         if transaction.sender_id == transaction.receiver_id:
-          print('transaction from manufacturer to manufacturer')
           if transaction.sender_id != transaction.manufacturer_id:
             print("Transaction to oneself (not manufacturer) detected")
             return False
-          # Manufacturer adds products to the blockchain
-          self.nodes[transaction.receiver_id]['stock'].add(transaction.product_id)
-          # BROADCAST
-          current_active_nodes[transaction.receiver_id].stock.add(transaction.product_id)
           return True
-        elif transaction.product_id in self.nodes[transaction.sender_id]['stock']:
+        elif self.nodes[transaction.sender_id]['stock'].difference(transaction.product_ids):
           print('Product id in sender\'s stock verified')
-          # perform the transaction operations
-          self.nodes[transaction.sender_id]['stock'].remove(transaction.product_id)
-          self.nodes[transaction.receiver_id]['stock'].add(transaction.product_id)
           return True
         else:
           # double spending detected
@@ -308,15 +334,18 @@ class Blockchain():
     # block verified
     return True
 
-  def startTransaction(self, receiver_id: int, product_id: int) -> None:
+  def startTransaction(self, receiver_id: int, product_ids: set[int]) -> None:
     sender_id = self.parent_node.id
     if self.parent_node.id in self.blocked_nodes: return print("Previous transaction verification pending.\n Next transaction can be requested only after verifying previous one")
-    new_txn = Transaction(self.manufacturer_id, product_id, sender_id, receiver_id, self.parent_node.sign(product_id^sender_id^receiver_id))
+    product_xor = 0
+    for i in product_ids:
+      product_xor ^= i
+    new_txn = Transaction(self.manufacturer_id, product_ids, sender_id, receiver_id, self.parent_node.sign(product_xor^sender_id^receiver_id))
     if sender_id == receiver_id == self.manufacturer_id:
       new_txn.receiver_sign = self.parent_node.sign(new_txn.transaction_id)
       self.accepted_transactions.append(new_txn)
       self.blocked_nodes.add(receiver_id)
-      return print("Given product will be added in next mining")
+      return print("Given products will be added in next mining")
     self.pending_transactions[receiver_id].append(new_txn)
     self.blocked_nodes.add(sender_id)
     print("Transaction request sent to: ", receiver_id)
@@ -335,23 +364,11 @@ class Blockchain():
         self.blocked_nodes.remove(txn.sender_id)
         return print("Transaction rejected")
     return print("No such transaction")
-  
-  """
-  Delete a transaction started by the parent_node
-  """
-  def deletePendingTransaction(self, receiver_id: int) -> None:
-    for txn in self.pending_transactions[receiver_id]:
-      if txn.sender_id == self.parent_node.id:
-        self.pending_transactions[receiver_id].remove(txn)
-        self.blocked_nodes.remove(self.parent_node.id)
-        return print("Transaction Request")
-    return print("No such transaction")
-
 
   """
   Accept a transaction, the acceptor is added to the blocked_nodes list, transaction moved to accepted_transactions
   """
-  def acceptTransaction(self, sender_id: int) -> None:
+  def acceptTransactionRequest(self, sender_id: int) -> None:
     if self.parent_node.id in self.blocked_nodes: return print("Previous transaction verification pending.\n Next transaction can be accepted only after verifying previous one")
     for txn in self.pending_transactions[self.parent_node.id]:
       if txn.sender_id == sender_id:
@@ -359,7 +376,12 @@ class Blockchain():
         txn.receiver_sign = self.parent_node.sign(txn.transaction_id)
         self.accepted_transactions.append(txn)
         self.blocked_nodes.add(self.parent_node.id)
-        return print("Transaction accepted")
+        print("Transaction accepted")
+        if len(self.accepted_transactions) >= MAX_TRANSACSIZE:
+          print("Multiple unverified transactions in the network")
+          print("Other nodes have started mining")
+          return self.mineBlock()
+        return
     return print("No such transaction")
     
   def changeParentNode(self, node_id: int) -> None:
@@ -369,28 +391,43 @@ class Blockchain():
   def calculateHash(s: Any) -> str:
     return hashlib.sha256(str(s).encode()).hexdigest()
   
-  def addNode(self, n_address: int, initial_stake: int, type: Literal['client', 'distributor'], n_stock: Iterable[int] = ()) -> None:
+  def addNode(self, n_address: int, initial_stake: int, type: Literal['client', 'distributor'], n_stock: set[int] = set()) -> None:
     if type == 'client':
       ntype = NodeType.CLIENT
     else:
       ntype = NodeType.DISTRIBUTOR
     new_node = Node(10*initial_stake, n_address, n_stock, ntype)
+    for product in n_stock:
+      product_locations[product] = n_address
     self.nodes[new_node.id] = new_node.getInfo()
     # BROADCAST
     current_active_nodes[new_node.id] = new_node
   
   def getProductStatus(self, product_id: int) -> str:
-    ans:str
     cur_block = self.blockchain[self.newest_block]
+    ans = ""
     while cur_block.height != 0:
       for txn in cur_block.transactions:
-        if txn.product_id == product_id:
-          if txn.sender_id_id == txn.manufacturer_id == txn.receiver_id:
-            ans= "Manufacturer with id: " + str(self.manufacturer_id) + " added the product to the supply chain on: " + txn.timestamp
-          ans= "Product with id: " + str(product_id) + " was sent from: " + self.nodes[txn.sender_id]['type'].name + " id: " + str(txn.sender_id) + " to: " + self.nodes[txn.receiver_id]['type'].name + " id: " + str(txn.receiver_id) + " on: " + txn.timestamp
-    ans= "Product does not exist on the supply chain"
+        for pid in txn.product_ids:
+          if pid == product_id:
+            if txn.sender_id == txn.manufacturer_id == txn.receiver_id:
+              ans = "Manufacturer with id: " + str(self.manufacturer_id) + " added the product to the supply chain on: " + txn.timestamp
+            ans = "Product with id: " + str(product_id) + " was sent from: " + self.nodes[txn.sender_id]['type'].name + " id: " + str(txn.sender_id) + " to: " + self.nodes[txn.receiver_id]['type'].name + " id: " + str(txn.receiver_id) + " on: " + txn.timestamp
+      cur_block = self.blockchain[cur_block.previous_hash]
+    if not ans:
+      ans = "Product does not exist on the Blockchain"
+      if product_id in product_locations:
+        ans = "Product found with node id: " + str(product_locations[product_id]) + "\nIt has not been used in any transactions"
     img = qrcode.make(ans)
-    img.save('MyQRCode1.png')
+    file_name = 'MyQRCode' + datetime.now().strftime("%d-%m-%Y--%H-%M-%S") + '.png'
+    img.save(file_name)
+    return file_name
+
+  def showBlockchain(self) -> None:
+    print("###  Printing Blocks in the Blockchain  ###")
+    cur_block = self.blockchain[self.newest_block]
+    while cur_block.height != 0:
+      print(cur_block)
 
 """
 Class defining a node of the merkle tree
@@ -438,35 +475,5 @@ class MerkleTree():
 # pool of all active nodes
 current_active_nodes: dict[int, Node] = dict()
 
-######      Testing Zone      ######
-if __name__ == '__main__':
-
-  manufacturer = Node(10000, 9999, (123, 321, 111, 222, 333), NodeType.MANUFACTURER)
-  bc = Blockchain(manufacturer)
-  print("add distributor 9998")
-  bc.addNode(9998, 1000, 'distributor', (323,))
-  print('add distributor 9997')
-  bc.addNode(9997, 1100, 'distributor', (909,))
-  print("add client 9996")
-  bc.addNode(9996, 100, 'client', ())
-  print([node.getInfo() for node in current_active_nodes.values()])
-  print(bc.nodes)
-  # manufacturer starts a transaction with the distributor
-  bc.startTransaction(9998, 123)
-  # distributor starts a transaction with the client
-  bc.changeParentNode(9997)
-  bc.startTransaction(9997, 323)
-  print(bc.pending_transactions)
-  print("Now at node: ", bc.parent_node.getInfo())
-  print("Pending transacs for 9998:", bc.getPendingTransactions())
-  # distributor accepts the transac
-  bc.acceptTransaction(9999)
-  print(bc.pending_transactions)
-  # transacs are verified in next mining
-  bc.mineBlock()
-  # print blockchain
-  cur_block = bc.newest_block
-  while bc.blockchain[cur_block].height != 0:
-    print(bc.blockchain[cur_block])
-    cur_block = bc.blockchain[cur_block].previous_hash
-  print(bc.blockchain[cur_block])
+# tracks used product ids and their current locations
+product_locations: dict[int, int] = dict()
