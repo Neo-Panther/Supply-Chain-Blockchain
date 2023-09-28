@@ -169,6 +169,7 @@ Represents the Blockchain copy on a node
 """
 class Blockchain():
   def __init__(self, manufacturer_node: Node) -> None:
+    # BROADCAST
     current_active_nodes[manufacturer_node.id] = manufacturer_node
     self.manufacturer_id = manufacturer_node.id
     for product in manufacturer_node.stock:
@@ -202,7 +203,7 @@ class Blockchain():
       if(len(node_stake)==2):
           return node_stake[0][1], node_stake[0][1], node_stake[1][1]
          
-      delegates:list[list[int]]=random.choices(node_stake,k=3)
+      delegates:list[list[int]]=random.sample(node_stake,k=3)
       print('List of Chosen Delegates: ', delegates)
       print('Vote Values Before Voting (id, stake): ', [(node[1], node[0]) for node in node_stake])
 
@@ -301,7 +302,7 @@ class Blockchain():
             print("Transaction to oneself (not manufacturer) detected")
             return False
           return True
-        elif self.nodes[transaction.sender_id]['stock'].difference(transaction.product_ids):
+        elif not transaction.product_ids.difference(self.nodes[transaction.sender_id]['stock']):
           print('Product id in sender\'s stock verified')
           return True
         else:
@@ -341,15 +342,14 @@ class Blockchain():
     for i in product_ids:
       product_xor ^= i
     new_txn = Transaction(self.manufacturer_id, product_ids, sender_id, receiver_id, self.parent_node.sign(product_xor^sender_id^receiver_id))
-    if sender_id == receiver_id == self.manufacturer_id:
-      new_txn.receiver_sign = self.parent_node.sign(new_txn.transaction_id)
-      self.accepted_transactions.append(new_txn)
-      self.blocked_nodes.add(receiver_id)
-      return print("Given products will be added in next mining")
     self.pending_transactions[receiver_id].append(new_txn)
+    if sender_id == receiver_id == self.manufacturer_id:
+      self.acceptTransactionRequest(self.manufacturer_id)
+      return print("Given products will be added in next mining")
     self.blocked_nodes.add(sender_id)
     print("Transaction request sent to: ", receiver_id)
-    return print("Transaction id:", new_txn.transaction_id)
+    print("Transaction id:", new_txn.transaction_id)
+    return print("Wait for receiver's response; and the next mining for the transaction to be completed")
 
   def getPendingTransactions(self) -> list[str]:
     return [str(txn) for txn in self.pending_transactions[self.parent_node.id]]
@@ -382,7 +382,7 @@ class Blockchain():
           print("Other nodes have started mining")
           return self.mineBlock()
         return
-    return print("No such transaction")
+    return print("No such transaction for current parent")
     
   def changeParentNode(self, node_id: int) -> None:
     self.parent_node = current_active_nodes[node_id]
@@ -428,6 +428,8 @@ class Blockchain():
     cur_block = self.blockchain[self.newest_block]
     while cur_block.height != 0:
       print(cur_block)
+      cur_block = self.blockchain[cur_block.previous_hash]
+    return print(cur_block)
 
 """
 Class defining a node of the merkle tree
@@ -477,3 +479,21 @@ current_active_nodes: dict[int, Node] = dict()
 
 # tracks used product ids and their current locations
 product_locations: dict[int, int] = dict()
+
+if __name__ == '__main__':
+  print("Creating Blockchain")
+  print("Enter initial products with manufacturer::")
+  stock = {1, 2}
+  manufacturer = Node(100000000, 9999, stock, NodeType.MANUFACTURER)
+  print("Manufacturer Node successfully created")
+  print("Node public info broadcasted to all nodes: ", manufacturer.getInfo())
+  bc = Blockchain(manufacturer)
+  print("Blockchain Created")
+  address = 9998
+  bc.addNode(9998, 100, 'distributor', {9,})
+  bc.startTransaction(9998, {1,})
+  bc.changeParentNode(9998)
+  bc.acceptTransactionRequest(9999)
+  print(bc.accepted_transactions)
+  print(manufacturer)
+  print(bc.mineBlock())
