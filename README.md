@@ -24,3 +24,8 @@ Before validating a block; all accepted transactions in the network are verified
 
 ## Anmol
 
+## Printing information on the parent node
+## get information on pending transactions
+## Confirm a Transaction Request
+## Reject a Transaction Request 
+## End Connection with Blockchain
