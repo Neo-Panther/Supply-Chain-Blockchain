@@ -76,8 +76,6 @@ while(True):
   if bc.parent_node.id == bc.manufacturer_id:
     print("Add product to Blockchain (Manufacturer's stock): 12")
   selection = getInt("Chooose an Operation to Perform: ")
-
-<<<<<<< HEAD
   print()
   if   selection == 1:
     n_type = input('Enter Node Type (d for istributor or c for client): ')
@@ -92,57 +90,6 @@ while(True):
       print("Product ids", inuse, "already in use, please enter unique ids")
       stock = set(getIntArr("Enter Space Separated unique Product-ids (leave blank to start with empty stock; repeated ids will be considered only once): "))
       inuse = stock.intersection(product_locations.keys())
-=======
-  print("Menu: \n")
-  print("To Add Node: 1 \n")
-  print("To change Parent: 2 \n")
-  print("To strt transaction: 3 \n")
-  print("Get Print pending transactions: 4 \n")
-  print("mine block: 5 \n")
-  print("get info : 6 \n")
-  print("get product status : 7 \n")
-  address:int=1000  
-  s=input("chooose an operation to perform ")
- 
-  if s==1:
-   a:str=input('enter input')
-   stock = map(int, input("Enter space separated product-ids: ").split())
-   bc.addNode(address,address*2,a,stock)
-   address-=1
- 
-  elif s==2:
-    a:int=input('enter node')
-    bc.changeParentNode(a)
-
-  elif s==3:
-    if bc.parent_node.type=='distributor':
-        a:int =input("enter name of client")
-        b:int =input("enter product id")
-        bc.startTransaction(a,b)
-
-    if bc.parent_node.type=='manufacturer':
-        a:int =input("enter name of distributor")
-        b:int =input("enter product id") 
-        bc.startTransaction(a,b)
-
-  elif s==4:
-     print(bc.pending_transactions)
-
-  elif s==5:
-     bc.mineBlock()
-
-  elif s==6:
-     bc.parent_node.getInfo()      
-     
-  elif s==7:
-    a:int=input("enter product id")
-    bc.getProductStatus(a)    
-
-
-
-
-
->>>>>>> fa42703 (something)
     
     stake = getInt("Enter Initial Security Deposit Value: ")
 

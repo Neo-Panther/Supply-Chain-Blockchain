@@ -20,7 +20,7 @@ Before validating a block; all accepted transactions in the network are verified
 
   validateBlock recomputes the merkle tree, checks its previous hash, height, and recalculates its header hash.
 
-  If the block is found to be invalid or if double spending is detected
+  If the block is found to be invalid or if double spending is detected the responsible nodes are penalized.
 
 ## Anmol
 
