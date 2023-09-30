@@ -74,13 +74,16 @@ Pair the transaction hashes in the list and we hash them together. If there's an
 ## Well known issues
 ### A sender can initiate a transaction when his/hers previous transactions are verified.
 
-### solution
-
+**Solution**
 All nodes whose previous transactions are pending are added into blocked, if there id is in the list of blocked nodes they cant initiate a transaction.
 
-### The distributor has dispatched the product, and the client has received it, but the client is denying it  
- Until the client puts signature on transaction,it is pending and client will not receive it.Eventually the product will be returned and transaction would be rejected.
+### The distributor has dispatched the product, and the client has received it, but the client is denying it
+
+**Solution**
+Until the client puts signature on transaction,it is pending and client will not receive it.Eventually the product will be returned and transaction would be rejected.
 
 ### The distributor has not dispatched the product, and the client has notreceived it (The client is not lying, but the distributor is)
+
+**Solution**
 If he does not have the product, he will be penalized for double spending.
 On the other hand if he doesnt dispatch it,the client will eventually cancelit

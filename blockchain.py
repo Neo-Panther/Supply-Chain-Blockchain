@@ -8,6 +8,7 @@ import enum
 from typing import Any, TypedDict, Literal
 from collections.abc import Iterable
 MAX_TRANSACSIZE = 3
+# TODO: Delete trasaction request from sender's side
 
 """
 Represents the types a node can be
