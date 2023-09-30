@@ -194,6 +194,9 @@ class Blockchain():
     def voting() -> tuple[int, int, int]:
       # selection of validators: [stake, id] - assume all active nodes available for mining and validation
       node_stake: list[list[int]] = [[node['stake']+len(node['stock']), id] for id, node in self.nodes.items()]
+      mstake = max(node_stake, key=lambda x: x[0])[0]
+      for i in node_stake:
+        i[0] += random.randint(0, mstake)
 
       print('Stakes Before Voting (id, stake): ', [(node[1], node[0]) for node in node_stake])
 
@@ -203,7 +206,7 @@ class Blockchain():
       if(len(node_stake)==2):
           return node_stake[0][1], node_stake[0][1], node_stake[1][1]
          
-      delegates:list[list[int]]=random.sample(node_stake,k=3)
+      delegates:list[list[int]]=random.sample(node_stake,k=random.randint(3, len(node_stake) - 1))
       print('List of Chosen Delegates: ', delegates)
       print('Vote Values Before Voting (id, stake): ', [(node[1], node[0]) for node in node_stake])
 
