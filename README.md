@@ -63,3 +63,24 @@ End the connection to the blockchain (exit the program)
 ## Add product to Blockchain (Manufacturer's stock) (Option 12)
 Manufacturer makes a transaction to himself to intorduce new products into the blockchain. This is the only transaction to oneself allowed in the blockchain.
 
+## merkle tree
+we construct a merkle tree.
+Each transaction is hashed using a cryptographic hash function (e.g., SHA-256). The hash of a transaction is a fixed-size string of characters that uniquely represents the transaction's content.
+
+Any change in a transaction would lead to a change in its hash, which, in turn, would affect the Merkle Root. Therefore, if someone tries to tamper with a transaction within a block, it becomes evident because the Merkle Root in the block header would no longer match the recalculated Merkle Root.
+
+Pair the transaction hashes in the list and we hash them together. If there's an odd number of transaction hashes, we duplicate the last hash to create an even number of pairs.We continue this process until we have only one hash remaining, which will be the Merkle Root.
+
+## Well known issues
+### A sender can initiate a transaction when his/hers previous transactions are verified.
+
+### solution
+
+All nodes whose previous transactions are pending are added into blocked, if there id is in the list of blocked nodes they cant initiate a transaction.
+
+### The distributor has dispatched the product, and the client has received it, but the client is denying it  
+ Until the client puts signature on transaction,it is pending and client will not receive it.Eventually the product will be returned and transaction would be rejected.
+
+### The distributor has not dispatched the product, and the client has notreceived it (The client is not lying, but the distributor is)
+If he does not have the product, he will be penalized for double spending.
+On the other hand if he doesnt dispatch it,the client will eventually cancelit
