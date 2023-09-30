@@ -26,6 +26,15 @@ Before validating a block; all accepted transactions in the network are verified
 
 ## Printing information on the parent node
 ## get information on pending transactions
+
+the function returns the list pending transactions mapped to the current parent node 
+
+def getPendingTransactions(self) -> list[str]:
+    return [str(txn) for txn in self.pending_transactions[self.parent_node.id]]
 ## Confirm a Transaction Request
+takes id of sender as the argument
+The function first checks if older transactions are pending for the current node
 ## Reject a Transaction Request 
+
 ## End Connection with Blockchain
+## Add product to Blockchain (Manufacturer's stock): 12

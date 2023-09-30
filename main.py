@@ -95,7 +95,7 @@ while(True):
 =======
   print("Menu: \n")
   print("To Add Node: 1 \n")
-  print("To change Parent: 2 \n")
+  print("To change Parent: 2i\n")
   print("To strt transaction: 3 \n")
   print("Get Print pending transactions: 4 \n")
   print("mine block: 5 \n")
