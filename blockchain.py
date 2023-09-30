@@ -338,6 +338,9 @@ class Blockchain():
     # block verified
     return True
 
+  """
+  The parent node starts a transaction as the sender
+  """
   def startTransaction(self, receiver_id: int, product_ids: set[int]) -> None:
     sender_id = self.parent_node.id
     if self.parent_node.id in self.blocked_nodes: return print("Previous transaction verification pending.\n Next transaction can be requested only after verifying previous one")
@@ -406,6 +409,9 @@ class Blockchain():
     # BROADCAST
     current_active_nodes[new_node.id] = new_node
   
+  """
+  Saves the product status in a qr image locally, returns the name of the file
+  """
   def getProductStatus(self, product_id: int) -> str:
     cur_block = self.blockchain[self.newest_block]
     ans = ""
@@ -432,6 +438,7 @@ class Blockchain():
     while cur_block.height != 0:
       print(cur_block)
       cur_block = self.blockchain[cur_block.previous_hash]
+    # print genesis block
     return print(cur_block)
 
 """
@@ -454,7 +461,9 @@ class MerkleNode():
 """
 Class defining a merkle tree
 **Fields**
-  tree_root: the root of the merkle tree
+  tree_root: the root of the merkle tree, this is a node thst can be used to 
+**Methods**
+  getRootHash: get the root hash value (value at the root of merkle tree)
 """
 class MerkleTree():
   def __init__(self, transactions: Iterable[Transaction]) -> None:

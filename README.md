@@ -1,14 +1,34 @@
 # Blockchain Assignment 1
-## Registering New Nodes
+
+Here we provide an overview of all features implemented in the blockchain. The main.py file is used as the frontend to access all these features and its options have been mentioned with the features.
+
+## Registering New Nodes (Option 1)
 manufacturer is added while creating the blockchain, all other nodes are added by calling the addNode function. Defined as:
 
 > addNode(self, n_address: int, initial_stake: int, type: Literal['client', 'distributor'], n_stock: set[int] = set()) -> None:
 
 Each node is assigned a public and private key upon creation. Initial stock is optional; and the node will start empty if an initial stock is not specified.
 
-The types a node can take are defined in NodeType Enum class. NodePublicInfo Data class gives a template for the public information of a node; available with all nodes. 
+The types a node can take are defined in NodeType Enum class. NodePublicInfo Data class gives a template for the public information of a node; available with all nodes (id, stake, stock, type, public key). 
 
-## Consnensus Algorithm
+## Change Simulated Node (Option 2)
+Change the current node of the blockchain. This changes the perspective of the blockchain network to the node entered. Since it is not possible to change nodes actually, this is simulated by changing the parent node field of blockchain class; this removes the private data of the old node, like its private; and replaces it with the new one.
+
+## Starting a Transaction (Option 3)
+Any node in the blockchain can start a transaction unless it already has a pending or unverified transaction. A transaction in our implementation is started by the sender node addressed to the reciever node, complete with the product ids. A node can only send the product ids it has in stock. The sender node is blocked until the transaction is rejected by the reciever node, or it is verified in the next mining. The transaction is signed automatically by the sender node's private key, detected from the current node assigned in the blockchain.
+
+**Note:** The current node is considered the sender of the transaction.
+
+## Getting product status (Option 4)
+Using the input product id we search linearly through all the blocks of the blockchain to find the most recent transaction in which the product was used. If the product was not used in a transaction, we go through the stocks of all the products (stored as a product_location dictionary for convinience). The output is saved in a qr code locally, and also opened at the time of execution.
+
+## Printing the Blockchain (Option 5)
+All the blocks in the blockchain are printed from the latest to genesis block.
+
+## Mining a Block (Option 6)
+When a node calls the mining function; it starts the voting process, a new block is mined of there are valid transactions, as described below.
+
+### Consnensus Algorithm
 The DPoS Consensus Algorithm has been implemented in the voting function; defined inside the mineBlock function. 
 
 Voting power of a node is calculated by adding its stake, stock and a random number between 0 and the maximum stake in the network. This allows all nodes to be validators and miners; but those nodes with a higher voting power have a much better chance to be chosen. 3 or more delegates are randomly chosen from the nodes; simulating the nodes which have started mining and have voted themselves. The remaining nodes vote for one among these delegates (simulated by random voting).
@@ -22,31 +42,24 @@ Before validating a block; all accepted transactions in the network are verified
 
   If the block is found to be invalid or if double spending is detected the responsible nodes are penalized.
 
-## Anmol
+### Validating a Transaction
+A transaction is validated by verifying the sender & reciever signatures using their public keys; and checking the stock of sender for the mentioned product ids. If double spending is detected the responsible nodes are penalized, an invalid transaction is dropped. After the  
 
-## Printing information on the parent node
-returns: publically available data of this node, the stock set's reference is returned, 
-the following format is followed
- 'id': self.id,
-      'stake': self.stake,
-      'stock': self.stock,
-      'type': self.type,
-      'public_key': self.public_key
-## get information on pending transactions
+## Printing information on the parent node (Option 7)
+Returns the publically available data of this node, the stock set's reference is returned.
 
-the function returns the list pending transactions mapped to the current parent node 
+## Get information on pending transactions (Option 8)
+The function returns the list pending transactions mapped to the current parent node.
 
-def getPendingTransactions(self) -> list[str]:
-    return [str(txn) for txn in self.pending_transactions[self.parent_node.id]]
-## Confirm a Transaction Request
-takes id of sender as the argument
-The function first checks if older transactions are pending for the current node
-Accept a transaction, the acceptor is added to the blocked_nodes list, transaction moved to accepted_transactions
-  """
-## Reject a Transaction Request 
+## Confirm a Transaction Request (Option 9)
+Given the id of the sender as argument the reciever accepts or rejects a transaction. If the reciever has already started or accepted a transaction, it is blocked and cannot accept any more.
+
+## Reject a Transaction Request (Option 10)
 Reject a transaction, the initiator is notified and removed from blocked_nodes
 
-## End Connection with Blockchain
-  
-## Add product to Blockchain (Manufacturer's stock): 12
+## End Connection with Blockchain (Option 11)
+End the connection to the blockchain (exit the program)
+
+## Add product to Blockchain (Manufacturer's stock) (Option 12)
+Manufacturer makes a transaction to himself to intorduce new products into the blockchain. This is the only transaction to oneself allowed in the blockchain.
 
