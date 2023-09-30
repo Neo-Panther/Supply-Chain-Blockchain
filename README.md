@@ -25,6 +25,13 @@ Before validating a block; all accepted transactions in the network are verified
 ## Anmol
 
 ## Printing information on the parent node
+returns: publically available data of this node, the stock set's reference is returned, 
+the following format is followed
+ 'id': self.id,
+      'stake': self.stake,
+      'stock': self.stock,
+      'type': self.type,
+      'public_key': self.public_key
 ## get information on pending transactions
 
 the function returns the list pending transactions mapped to the current parent node 
@@ -34,6 +41,8 @@ def getPendingTransactions(self) -> list[str]:
 ## Confirm a Transaction Request
 takes id of sender as the argument
 The function first checks if older transactions are pending for the current node
+Accept a transaction, the acceptor is added to the blocked_nodes list, transaction moved to accepted_transactions
+  """
 ## Reject a Transaction Request 
 
 ## End Connection with Blockchain

@@ -68,7 +68,7 @@ class Node():
     return rsa.verify(str(message).encode('utf-8'), signature, key) == 'SHA-1'
 
   """
-  returns: publically available data of this node, the stock set's reference is returned, changing stock returned by getInfo, changes
+  returns: publically available data of this node, the stock set's reference is returned, changing stock returned by getInfo,
   """
   def getInfo(self) -> NodePublicInfo:
     return {
