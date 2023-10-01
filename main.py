@@ -64,7 +64,7 @@ bc.accepted_transactions.append(t3)
 bc.blocked_nodes.add(9994)
 bc.blocked_nodes.add(9993)
 
-wait = 1
+wait = 3
 # Main thread loop
 while(True):
   for i in range(wait, -1, -1):

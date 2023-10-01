@@ -1,8 +1,8 @@
 # Blockchain Assignment 1
 
 ## Group Information (Name and ID)
-1. Anmol Agarwal: 2021A7PS0136H
-2. Aryan Gupta: 2021A7PS0162H
+1. Aryan Gupta: 2021A7PS0162H
+2. Anmol Agarwal: 2021A7PS0136H
 3. Ayush Nautiyal: 2021A7PS2607H
 4. Mihir Kulkarni: 2021A7PS2689H
 5. Aditya Aggarwal: 2021A7PS2380H
@@ -10,7 +10,7 @@
 Here, we offer an overview of all the features implemented within the blockchain. The "main.py" file serves as the frontend for accessing these features, and their corresponding options are detailed alongside.
 
 ## main.py
-Description of the functions used in main.py
+Description of the functions used in "main.py"
 
 ### Registering New Nodes (Option 1)
 manufacturer is added while creating the blockchain, all other nodes are added by calling the addNode function. Initial stake is calculated from their security deposit, id is calculated automatically (decreasing from 9999; 9999 alloted to the manufaturer). {id is sometimes referred to as address; because they are supposed to be derived from the real (network) address of the nodes in the network}
@@ -104,4 +104,4 @@ If the dispatcher does not have the mentioned products, it will be found out dur
 **Assumptions:**
 1. Any Node can start a Transaction with any other
 2. Client's signature proves that it has seen the products; but it will only be added to its stock (handed over to him) after validation. Client can start the voting process to expediate the same. Any node can start the voting process - by calling mineBlock method; but only the chosen miner can add block. It must also be verified by the chosen validators. (Responsibilty of checking if the dispatcher has sent the products falls with the client and the validators; Responsibility of checking if the client has received the products lies with the validators)
-*Note:* The main.py file is the frontend endpoint of our code; its functions have been described in this file. Comments describing the core blockchain file have been placed in blockchain.py
+*Note:* The "main.py" file is the frontend endpoint of our code; its functions have been described in this file. Comments describing the core blockchain file have been placed in "blockchain.py"

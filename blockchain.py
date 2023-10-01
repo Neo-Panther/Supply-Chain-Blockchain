@@ -215,7 +215,7 @@ class Blockchain():
     self.parent_node = manufacturer_node
   
   def mineBlock(self) -> None:
-    print("Mining initiated")
+    print("Mining initiated\nStarting Voting Process")
     voted: defaultdict[int, set[int]] = defaultdict(set)
     def voting() -> tuple[int, int, int]:
       # selection of validators: [stake, id] - assume all active nodes available for mining and validation
@@ -477,7 +477,7 @@ class Blockchain():
     if not ans:
       ans = "Product does not exist on the Blockchain."
       if product_id in self.product_locations:
-        ans = "Product with id: " + str(product_id) + " found with" + self.nodes[self.product_locations[product_id]]['type'].name + " id: " + str(self.product_locations[product_id]) + ". It has not been used in any transactions."
+        ans = "Product with id: " + str(product_id) + " found with " + self.nodes[self.product_locations[product_id]]['type'].name + " id: " + str(self.product_locations[product_id]) + ". It has not been used in any transactions."
     img = qrcode.make(ans)
     file_name = 'MyQRCode' + datetime.now().strftime("%d-%m-%Y--%H-%M-%S") + '.png'
     img.save(file_name)
