@@ -7,17 +7,15 @@
 4. Mihir Kulkarni: 2021A7PS2689H
 5. Aditya Aggarwal: 2021A7PS2380H
 
-Here we provide an overview of all features implemented in the blockchain. The main.py file is used as the frontend to access all these features and its options have been mentioned with the features.
+Here, we offer an overview of all the features implemented within the blockchain. The "main.py" file serves as the frontend for accessing these features, and their corresponding options are detailed alongside.
 
 ## main.py
 Description of the functions used in main.py
 
 ### Registering New Nodes (Option 1)
-manufacturer is added while creating the blockchain, all other nodes are added by calling the addNode function. Defined as:
+manufacturer is added while creating the blockchain, all other nodes are added by calling the addNode function. Initial stake is calculated from their security deposit, id is calculated automatically (decreasing from 9999; 9999 alloted to the manufaturer). {id is sometimes referred to as address; because they are supposed to be derived from the real (network) address of the nodes in the network}
 
-> addNode(self, n_address: int, initial_stake: int, type: Literal['client', 'distributor'], n_stock: set[int] = set()) -> None:
-
-Each node is assigned a public and private key upon creation. Initial stock is optional; and the node will start empty if an initial stock is not specified.
+Each node is assigned a public and private key upon creation. Initial stock is optional. The node will start with empty if an initial stock is not specified. If initial stock is specified, it is saved in product_locations until used in a transaction.
 
 The types a node can take are defined in NodeType Enum class. NodePublicInfo Data class gives a template for the public information of a node; available with all nodes (id, stake, stock, type, public key). 
 
@@ -29,7 +27,7 @@ Any node in the blockchain can start a transaction unless it already has a pendi
 
 **Note:** The current node is considered the sender of the transaction.
 
-### Getting product status (Option 4)
+### Getting product status (Option 4) - QR Code
 Using the input product id we search linearly through all the blocks of the blockchain to find the most recent transaction in which the product was used. If the product was not used in a transaction, we go through the stocks of all the products (stored as a product_location dictionary for convinience). The output is saved in a qr code locally, and also opened at the time of execution.
 
 ### Printing the Blockchain (Option 5)
@@ -38,7 +36,7 @@ All the blocks in the blockchain are printed from the latest to genesis block.
 ### Mining a Block (Option 6)
 When a node calls the mining function; it starts the voting process, a new block is mined of there are valid transactions, as described below.
 
-#### Consnensus Algorithm
+#### Consensus Algorithm
 The DPoS Consensus Algorithm has been implemented in the voting function; defined inside the mineBlock function. 
 
 Voting power of a node is calculated by adding its stake, stock and a random number between 0 and the maximum stake in the network. This allows all nodes to be validators and miners; but those nodes with a higher voting power have a much better chance to be chosen. 3 or more delegates are randomly chosen from the nodes; simulating the nodes which have started mining and have voted themselves. The remaining nodes vote for one among these delegates (simulated by random voting).
@@ -96,14 +94,14 @@ A node can only start or accept a transaction if the previous transaction it has
 **Solution**
 Until the client puts its signature on the transaction and it gets verified by atleast 2 validators; only then will the products be added to client's stock. The client's signature prevents it from lying.
 > A Transaction's operations are carried out after verification (validateTransaction), its addition to a new block, and verification by two validators (simulated). All this is done in mineBlock.
+*Note:* If the client somehow already has a product id; we merge both the product ids. Since it is not possible (without malicious usage) to use the same product id two times (because of how the blockchain is implemented); we penalize the client.
 
 ### The distributor has not dispatched the product, and the client has not received it (The client is not lying, but the distributor is)
 
 **Solution**
-If the dispatcher does not have the mentioned products: this will be found out during validation of the transaction (validateTransaction called in mineBlock) and the dispatcher will be penalized.
+If the dispatcher does not have the mentioned products, it will be found out during validation of the transaction (validateTransaction called in mineBlock) and the dispatcher will be penalized.
 
 **Assumptions:**
 1. Any Node can start a Transaction with any other
-2. Client's signature proves that it has seen the products; but it will only be added to its stock (handed over to him) after validation. Client can start the mining process to expediate the same. ()
-3. New nodes can be added with some initial stock.
+2. Client's signature proves that it has seen the products; but it will only be added to its stock (handed over to him) after validation. Client can start the voting process to expediate the same. Any node can start the voting process - by calling mineBlock method; but only the chosen miner can add block. It must also be verified by the chosen validators. (Responsibilty of checking if the dispatcher has sent the products falls with the client and the validators; Responsibility of checking if the client has received the products lies with the validators)
 *Note:* The main.py file is the frontend endpoint of our code; its functions have been described in this file. Comments describing the core blockchain file have been placed in blockchain.py

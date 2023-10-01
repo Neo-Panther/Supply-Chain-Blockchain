@@ -169,7 +169,8 @@ class Block():
 """
 Represents the Blockchain copy on a node
 **Fields**
-  manufacturer: manufacturer for this supply chain management
+  manufacturer_id: manufacturer id for this supply chain (represented by this blockchain)
+  product_locations: used to track product_ids before they are used in a transaction
   blockchain: dictionary containing all blocks in this blockchain copy (header_hash as key)
   nodes: dictionary containing all known nodes public info (id as key)
   pending_transactions: dictinary containing all transactions yet to be accepted by the second party (receiver_id as key)
@@ -195,8 +196,10 @@ class Blockchain():
     # BROADCAST
     current_active_nodes[manufacturer_node.id] = manufacturer_node
     self.manufacturer_id = manufacturer_node.id
+    # tracks used product ids and their current locations (before they are used in a transaction)
+    self.product_locations: dict[int, int] = dict()
     for product in manufacturer_node.stock:
-      product_locations[product] = self.manufacturer_id
+      self.product_locations[product] = self.manufacturer_id
     # header_hash => block
     self.blockchain: dict[str, Block] = dict()
     genesis_block = Block(self.calculateHash(''), 0, [], manufacturer_node.id)
@@ -283,7 +286,7 @@ class Blockchain():
         self.nodes[transaction.receiver_id]['stock'] = self.nodes[transaction.receiver_id]['stock'].union(transaction.product_ids)
         # BROADCAST
         for product in transaction.product_ids:
-          product_locations[product] = transaction.receiver_id
+          self.product_locations[product] = transaction.receiver_id
         current_active_nodes[transaction.receiver_id].stock = current_active_nodes[transaction.receiver_id].stock.union(transaction.product_ids)
       
       print('Rewarding Miner and his voters')
@@ -324,10 +327,20 @@ class Blockchain():
         if transaction.sender_id == transaction.receiver_id:
           if transaction.sender_id != transaction.manufacturer_id:
             print("Transaction to oneself (not manufacturer) detected")
+            print("Penalizing the node")
+            self.nodes[transaction.sender_id]['stake'] //= 2
+            current_active_nodes[transaction.sender_id].stake //= 2
             return False
           return True
         elif not transaction.product_ids.difference(self.nodes[transaction.sender_id]['stock']):
           print('Product id in sender\'s stock verified')
+          if transaction.product_ids.intersection(self.nodes[transaction.receiver_id]['stock']):
+            print('Duplicate Product id in receiver\'s stock')
+            print("Penalizing the node")
+            self.nodes[transaction.receiver_id]['stake'] //= 2
+            current_active_nodes[transaction.receiver_id].stake //= 2
+            return False
+          print('Product id not in receiver\'s stock verified')
           return True
         else:
           # Sender does not hacve the requested goods
@@ -442,7 +455,7 @@ class Blockchain():
       ntype = NodeType.DISTRIBUTOR
     new_node = Node(10*initial_stake, n_address, n_stock, ntype)
     for product in n_stock:
-      product_locations[product] = n_address
+      self.product_locations[product] = n_address
     self.nodes[new_node.id] = new_node.getInfo()
     # BROADCAST
     current_active_nodes[new_node.id] = new_node
@@ -463,8 +476,8 @@ class Blockchain():
       cur_block = self.blockchain[cur_block.previous_hash]
     if not ans:
       ans = "Product does not exist on the Blockchain."
-      if product_id in product_locations:
-        ans = "Product with id: " + str(product_id) + " found with" + self.nodes[product_locations[product_id]]['type'].name + " id: " + str(product_locations[product_id]) + ". It has not been used in any transactions."
+      if product_id in self.product_locations:
+        ans = "Product with id: " + str(product_id) + " found with" + self.nodes[self.product_locations[product_id]]['type'].name + " id: " + str(self.product_locations[product_id]) + ". It has not been used in any transactions."
     img = qrcode.make(ans)
     file_name = 'MyQRCode' + datetime.now().strftime("%d-%m-%Y--%H-%M-%S") + '.png'
     img.save(file_name)
@@ -526,6 +539,3 @@ class MerkleTree():
 
 # pool of all active nodes
 current_active_nodes: dict[int, Node] = dict()
-
-# tracks used product ids and their current locations
-product_locations: dict[int, int] = dict()

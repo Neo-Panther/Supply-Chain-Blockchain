@@ -40,7 +40,7 @@ bc.addNode(9996, 300, 'distributor', {660,})
 bc.addNode(9995, 800, 'distributor', {80, 90})
 bc.addNode(9994, 50, 'client', {70, 20})
 bc.addNode(9993, 1000, 'client', {30, 40})
-# 3 accepted transations (1 unverified) added in advance
+# 3 accepted transations (1 unverified and 2 in blocks) added in advance
 t1 = Transaction(
   9999, {9,}, 9998, 9997, current_active_nodes[9998].sign(9^9998^9997)
 )
@@ -109,11 +109,11 @@ while(True):
     if n_type == 'd': n_type = 'distributor'
     else: n_type = 'client'
     stock = set(getIntArr("Enter Space Separated Unique Product-ids (leave blank to start with empty stock; repeated ids will be considered only once): "))
-    inuse = stock.intersection(product_locations.keys())
+    inuse = stock.intersection(bc.product_locations.keys())
     while inuse:
       print("Product ids", inuse, "already in use, please enter unique ids")
       stock = set(getIntArr("Enter Space Separated unique Product-ids (leave blank to start with empty stock; repeated ids will be considered only once): "))
-      inuse = stock.intersection(product_locations.keys())
+      inuse = stock.intersection(bc.product_locations.keys())
     
     stake = getInt("Enter Initial Security Deposit Value: ")
 
@@ -200,10 +200,10 @@ while(True):
     break
 
   elif selection == 12 and bc.parent_node.id == bc.manufacturer_id:
-    print("Products currently in the blockchain:", product_locations.keys())
+    print("Products currently in the blockchain:", bc.product_locations.keys())
     product_ids = set(getIntArr("Enter Space Separated Unique Product-ids, enter nothing or used id to stop (repeated ids will be considered only once): "))
     if not product_ids: continue
-    if product_ids.intersection(product_locations.keys()):
+    if product_ids.intersection(bc.product_locations.keys()):
       print("Products not in Stock, Stopping")
       continue
     bc.startTransaction(bc.manufacturer_id, product_ids)
