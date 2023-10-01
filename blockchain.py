@@ -7,8 +7,29 @@ import qrcode
 import enum
 from typing import Any, TypedDict, Literal
 from collections.abc import Iterable
+import json
 MAX_TRANSACSIZE = 3
 # TODO: Delete trasaction request from sender's side
+
+class customEncoder(json.JSONEncoder):
+  def default(self, o: Any) -> Any:
+    if isinstance(o, set):
+      return list(o)
+    elif isinstance(o, rsa.PublicKey):
+      return "PublicKey(" + str(o.n) + ', ' + str(o.e) + ')'
+    elif isinstance(o, rsa.PrivateKey):
+      return "__private key object"
+    elif isinstance(o, bytes):
+      return "__signature bytes object"
+    elif isinstance(o, MerkleTree):
+      return "__merkle tree object"
+    elif isinstance(o, datetime):
+      return o.strftime("%d|%m|%Y><%H:%M:%S")
+    elif isinstance(o, Transaction):
+      return o.__dict__
+    elif isinstance(o, NodeType):
+      return o.name
+    return super().default(o)
 
 """
 Represents the types a node can be
@@ -81,7 +102,7 @@ class Node():
     }
   
   def __str__(self) -> str:
-    return str(self.__dict__)
+    return json.dumps(self.__dict__, cls=customEncoder, indent=4, separators=(',', ': '))
 
 """
 Represents a transaction in the blockchain
@@ -110,7 +131,7 @@ class Transaction():
     self.receiver_sign: None | bytes = None
   
   def  __str__(self):
-    return str(self.__dict__)
+    return json.dumps(self.__dict__, cls=customEncoder, indent=4, separators=(',', ': '))
   
 """
 Represents a Block of the blockchain
@@ -143,7 +164,7 @@ class Block():
     return self.merkle_tree.getRootHash()
   
   def __str__(self) -> str:
-    return str(self.__dict__)
+    return json.dumps(self.__dict__, cls=customEncoder, indent=4, separators=(',', ': '))
 
 """
 Represents the Blockchain copy on a node
@@ -167,6 +188,7 @@ Represents the Blockchain copy on a node
   calculate_hash: utility function to find SHA-256 hash of some data
   getProductStatus: given a product id, traverse the block chain to find the most recent transaction the product was present in
   showBlockchain: print all blocks of the blockchain
+  deleteTransactionRequest: delete the pending 
 """
 class Blockchain():
   def __init__(self, manufacturer_node: Node) -> None:
@@ -184,7 +206,7 @@ class Blockchain():
     # the genesis block
     self.blocked_nodes: set[int] = set()
     # receiver_id => unsigned transaction list
-    self.pending_transactions: dict[int, list[Transaction]] = defaultdict(list)
+    self.pending_transactions: defaultdict[int, list[Transaction]] = defaultdict(list)
     self.accepted_transactions: list[Transaction] = []
     self.newest_block = genesis_block.header_hash
     self.parent_node = manufacturer_node
@@ -208,8 +230,8 @@ class Blockchain():
           return node_stake[0][1], node_stake[0][1], node_stake[1][1]
          
       delegates:list[list[int]]=random.sample(node_stake,k=random.randint(3, len(node_stake) - 1))
-      print('List of Chosen Delegates: ', delegates)
-      print('Vote Values Before Voting (id, stake): ', [(node[1], node[0]) for node in node_stake])
+      print('List of Chosen Delegates (stake, id): ', delegates)
+      print('Vote Values Before Voting (id, voting power): ', [(node[1], node[0]) for node in node_stake])
 
       for x in node_stake:
         if x in delegates:
@@ -235,7 +257,6 @@ class Blockchain():
     # if there are no transactions, stop mining
     if not block_txn:
       self.accepted_transactions.clear()
-      self.blocked_nodes.clear()
       return print("No valid transactions for this block found")
 
     print("Valid transactions separated:", block_txn)
@@ -274,7 +295,6 @@ class Blockchain():
 
       # Block is valid, make necessary changes to the blockchain
       self.accepted_transactions.clear()
-      self.blocked_nodes.clear()
       self.blockchain[new_block.header_hash]=new_block
       self.newest_block=new_block.header_hash
     
@@ -291,7 +311,7 @@ class Blockchain():
       current_active_nodes[id].stake += 2
 
   """
-  Validate a transaction and perform the operations if it is valid; only manufacturer can make a transaction to oneself
+  Validate a transaction and perform the operations if it is valid; only manufacturer can make a transaction to oneself. Both sender and receiver are removed from blocked nodes even if transaction is invalid
   """
   def validateTransaction(self, transaction:Transaction) -> bool:
     self.blocked_nodes.remove(transaction.sender_id)
@@ -300,7 +320,7 @@ class Blockchain():
     if Node.verify(transaction.transaction_id, transaction.sender_sign, self.nodes[transaction.sender_id]['public_key']) and transaction.receiver_sign:
       print("sender_sign verified")
       if Node.verify(transaction.transaction_id, transaction.receiver_sign, self.nodes[transaction.receiver_id]['public_key']):
-        print("reciever_sign verified")
+        print("receiver_sign verified")
         if transaction.sender_id == transaction.receiver_id:
           if transaction.sender_id != transaction.manufacturer_id:
             print("Transaction to oneself (not manufacturer) detected")
@@ -310,8 +330,8 @@ class Blockchain():
           print('Product id in sender\'s stock verified')
           return True
         else:
-          # double spending detected
-          print("Double Spending by id:", transaction.sender_id, "detected")
+          # Sender does not hacve the requested goods
+          print("Node id:", transaction.sender_id, " does not have the mentioned product ids:", transaction.product_ids.difference(self.nodes[transaction.sender_id]['stock']))
           print("Penalizing the node")
           self.nodes[transaction.sender_id]['stake'] //= 2
           current_active_nodes[transaction.sender_id].stake //= 2
@@ -357,23 +377,40 @@ class Blockchain():
     print("Transaction request sent to: ", receiver_id)
     print("Transaction id:", new_txn.transaction_id)
     return print("Wait for receiver's response; and the next mining for the transaction to be completed")
-
-  def getPendingTransactions(self) -> list[str]:
-    return [str(txn) for txn in self.pending_transactions[self.parent_node.id]]
   
   """
-  Reject a transaction, the initiator is notified and removed from blocked_nodes
+  Deletes a pending transaction sent by the parent node, unblocking it for more transactions
+  """
+  def deleteTransactionRequest(self) -> None:
+    if self.parent_node.id not in self.blocked_nodes:
+      return print("No Pending Transaction found for parent")
+    for txns in self.pending_transactions.values():
+      for txn in txns:
+        if txn.sender_id == self.parent_node.id:
+          self.blocked_nodes.remove(self.parent_node.id)
+          self.pending_transactions[txn.receiver_id].remove(txn)
+          return print("Transaction deleted; node unblocked for transactions")
+    return print("Transaction has been accepted; it cannot be deleted; node will be unblocked after verification")
+
+  """
+  Get all transaction requests sent TO parent node; this are still to be accepted or rejected
+  """
+  def getPendingTransactions(self) -> str:
+    return json.dumps(self.pending_transactions[self.parent_node.id], cls=customEncoder, indent=4, separators=(',', ': '))
+  
+  """
+  Reject a transaction, the initiator is notified and removed from blocked_nodes (products returned to sender)
   """
   def rejectTransactionRequest(self, sender_id: int) -> None:
     for txn in self.pending_transactions[self.parent_node.id]:
       if txn.sender_id == sender_id:
         self.pending_transactions[self.parent_node.id].remove(txn)
         self.blocked_nodes.remove(txn.sender_id)
-        return print("Transaction rejected")
+        return print("Transaction Rejected")
     return print("No such transaction")
 
   """
-  Accept a transaction, the acceptor is added to the blocked_nodes list, transaction moved to accepted_transactions
+  Accept a transaction, the acceptor is added to the blocked_nodes list, transaction moved to accepted_transactions (products will be delivered after verification)
   """
   def acceptTransactionRequest(self, sender_id: int) -> None:
     if self.parent_node.id in self.blocked_nodes: return print("Previous transaction verification pending.\n Next transaction can be accepted only after verifying previous one")
@@ -383,7 +420,7 @@ class Blockchain():
         txn.receiver_sign = self.parent_node.sign(txn.transaction_id)
         self.accepted_transactions.append(txn)
         self.blocked_nodes.add(self.parent_node.id)
-        print("Transaction accepted")
+        print("Transaction Accepted; wait for the next mining to receive products")
         if len(self.accepted_transactions) >= MAX_TRANSACSIZE:
           print("Multiple unverified transactions in the network")
           print("Other nodes have started mining")
@@ -422,12 +459,12 @@ class Blockchain():
           if pid == product_id:
             if txn.sender_id == txn.manufacturer_id == txn.receiver_id:
               ans = "Manufacturer with id: " + str(self.manufacturer_id) + " added the product to the supply chain on: " + txn.timestamp
-            ans = "Product with id: " + str(product_id) + " was sent from: " + self.nodes[txn.sender_id]['type'].name + " id: " + str(txn.sender_id) + " to: " + self.nodes[txn.receiver_id]['type'].name + " id: " + str(txn.receiver_id) + " on: " + txn.timestamp
+            ans = "Product with id: " + str(product_id) + " was sent from: " + self.nodes[txn.sender_id]['type'].name + " id: " + str(txn.sender_id) + " to: " + self.nodes[txn.receiver_id]['type'].name + " id: " + str(txn.receiver_id) + " at: " + txn.timestamp + "."
       cur_block = self.blockchain[cur_block.previous_hash]
     if not ans:
-      ans = "Product does not exist on the Blockchain"
+      ans = "Product does not exist on the Blockchain."
       if product_id in product_locations:
-        ans = "Product found with node id: " + str(product_locations[product_id]) + "\nIt has not been used in any transactions"
+        ans = "Product with id: " + str(product_id) + " found with" + self.nodes[product_locations[product_id]]['type'].name + " id: " + str(product_locations[product_id]) + ". It has not been used in any transactions."
     img = qrcode.make(ans)
     file_name = 'MyQRCode' + datetime.now().strftime("%d-%m-%Y--%H-%M-%S") + '.png'
     img.save(file_name)
@@ -492,21 +529,3 @@ current_active_nodes: dict[int, Node] = dict()
 
 # tracks used product ids and their current locations
 product_locations: dict[int, int] = dict()
-
-if __name__ == '__main__':
-  print("Creating Blockchain")
-  print("Enter initial products with manufacturer::")
-  stock = {1, 2}
-  manufacturer = Node(100000000, 9999, stock, NodeType.MANUFACTURER)
-  print("Manufacturer Node successfully created")
-  print("Node public info broadcasted to all nodes: ", manufacturer.getInfo())
-  bc = Blockchain(manufacturer)
-  print("Blockchain Created")
-  address = 9998
-  bc.addNode(9998, 100, 'distributor', {9,})
-  bc.startTransaction(9998, {1,})
-  bc.changeParentNode(9998)
-  bc.acceptTransactionRequest(9999)
-  print(bc.accepted_transactions)
-  print(manufacturer)
-  print(bc.mineBlock())
