@@ -3,9 +3,6 @@
 ## Group Information (Name and ID)
 1. Aryan Gupta: 2021A7PS0162H
 2. Anmol Agarwal: 2021A7PS0136H
-3. Ayush Nautiyal: 2021A7PS2607H
-4. Mihir Kulkarni: 2021A7PS2689H
-5. Aditya Aggarwal: 2021A7PS2380H
 
 Here, we offer an overview of all the features implemented within the blockchain. The "main.py" file serves as the frontend for accessing these features, and their corresponding options are detailed alongside.
 
