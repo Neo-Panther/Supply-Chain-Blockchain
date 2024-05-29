@@ -1,4 +1,6 @@
-# Blockchain Assignment 1
+# Supply Chain Blockchain
+
+This project aims to build a dummy blockchain to implement a supply chain management system. The project mimics the flow of the blockchain using python code.
 
 ## Group Information (Name and ID)
 1. Aryan Gupta: 2021A7PS0162H
